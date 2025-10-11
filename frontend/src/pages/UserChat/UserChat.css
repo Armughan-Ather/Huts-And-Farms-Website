@@ -270,6 +270,7 @@
   font-size: 15px;
   line-height: 1.5;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
 }
 
 .user-chat-page-user-message .user-chat-page-bubble {
@@ -298,6 +299,10 @@
 
 .user-chat-page-image {
   max-width: 100%;
+  max-height: 400px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
   border-radius: 12px;
   margin-top: 10px;
   display: block;
@@ -311,9 +316,19 @@
 
 .user-chat-page-video {
   max-width: 100%;
+  max-height: 400px;
+  width: auto;
+  height: auto;
   border-radius: 12px;
   margin-top: 10px;
   display: block;
+}
+
+/* Ensure images in bubbles don't overflow */
+.user-chat-page-bubble img {
+  max-width: 100%;
+  max-height: 350px;
+  object-fit: contain;
 }
 
 /* Typing Indicator */
@@ -506,6 +521,14 @@
 
   .user-chat-page-empty-state p {
     font-size: 14px;
+  }
+
+  .user-chat-page-image {
+    max-height: 300px;
+  }
+
+  .user-chat-page-bubble img {
+    max-height: 280px;
   }
 }
 
@@ -723,6 +746,158 @@
   scroll-behavior: smooth;
 }
 
+/* Custom Image Modal */
+.user-chat-page-image-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.user-chat-page-modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.95);
+  backdrop-filter: blur(5px);
+}
+
+.user-chat-page-modal-content {
+  position: relative;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  max-width: 95%;
+  max-height: 95vh;
+  padding: 20px;
+  animation: zoomIn 0.3s ease;
+}
+
+@keyframes zoomIn {
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.user-chat-page-modal-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 50px;
+  height: 50px;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 50%;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
+}
+
+.user-chat-page-modal-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: rotate(90deg);
+}
+
+.user-chat-page-modal-image {
+  max-width: 100%;
+  max-height: 80vh;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  user-select: none;
+}
+
+.user-chat-page-modal-download {
+  margin-top: 20px;
+  padding: 12px 30px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  text-decoration: none;
+  border-radius: 25px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+  border: none;
+  cursor: pointer;
+}
+
+.user-chat-page-modal-download:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+  color: white;
+  text-decoration: none;
+}
+
+.user-chat-page-modal-download i {
+  font-size: 16px;
+}
+
+/* Fix for Font Awesome Icons */
+.user-chat-page-header-avatar i,
+.user-chat-page-message-avatar i,
+.user-chat-page-empty-icon,
+.user-chat-page-upload-btn i,
+.user-chat-page-send-btn i,
+.user-chat-page-icon-btn i,
+.user-chat-page-error-banner i,
+.user-chat-page-modal-close i,
+.user-chat-page-modal-download i,
+.user-chat-page-error-close i {
+  font-family: 'Font Awesome 5 Free', 'Font Awesome 5 Brands';
+  font-weight: 900;
+  font-style: normal;
+  display: inline-block;
+}
+
+/* Error Banner Fix */
+.user-chat-page-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  background: #fee2e2;
+  border-top: 1px solid #fecaca;
+  color: #dc2626;
+  font-size: 14px;
+}
+
+.user-chat-page-error-banner i {
+  flex-shrink: 0;
+}
+
 /* Image Loading State */
 .user-chat-page-image {
   background: #f3f4f6;
@@ -823,7 +998,6 @@
     padding: 10px 16px;
     font-size: 14px;
   }
-/* } */
 
 @media (max-width: 576px) {
   .user-chat-page-wrapper {
@@ -846,5 +1020,4 @@
   .user-chat-page-chatbox {
     border-radius: 0;
   }
-
- }
+}

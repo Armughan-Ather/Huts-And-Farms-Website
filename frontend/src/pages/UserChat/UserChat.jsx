@@ -11,15 +11,27 @@ import {
   MDBSpinner 
 } from "mdb-react-ui-kit";
 
-function UserChat({ userId }) {
+function UserChat() {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState("");
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [showImageModal, setShowImageModal] = useState(false);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const [userId, setUserId] = useState(null);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      setUserId(JSON.parse(storedUser).user_id);
+    } else {
+      window.location.href = "/login";
+    }
+  }, []);
 
   useEffect(() => {
     if (userId) loadChatHistory();
@@ -38,10 +50,24 @@ function UserChat({ userId }) {
     try {
       const response = await axios.post(
         `${import.meta.env.VITE_FAST_API_BASE}/api/web-chat/history`,
-        { user_id: userId, limit: 50 },
+        { user_id: userId, limit: 100 },
         { headers: { "Content-Type": "application/json" } }
       );
-      setMessages(response.data || []);
+
+      const normalizedMessages = (response.data || []).map(msg => {
+        const imageUrlMatch = msg.content?.match(/https?:\/\/[^\s]+/);
+        if (imageUrlMatch && imageUrlMatch[0].includes("res.cloudinary.com")) {
+          return {
+            ...msg,
+            media_urls: { images: [imageUrlMatch[0]] },
+            content: "📷 Image",
+          };
+        }
+        return msg;
+      });
+
+      setMessages(normalizedMessages);
+      console.log(response.data);
       setError("");
     } catch (error) {
       console.error("Failed to load history:", error);
@@ -86,23 +112,29 @@ function UserChat({ userId }) {
     } catch (error) {
       console.error("Send message failed:", error);
       setError("Failed to send message. Please try again.");
-      // Remove the user message if sending failed
       setMessages((prev) => prev.slice(0, -1));
     } finally {
       setIsSending(false);
     }
   };
 
+  const formatBotMessage = (text) => {
+    if (!text) return "";
+    let formatted = text.replace(/\*(.*?)\*/g, "<strong>$1</strong>");
+    formatted = formatted.replace(/‣/g, "•");
+    formatted = formatted.replace(/^- /gm, "• ");
+    formatted = formatted.replace(/\n/g, "<br>");
+    return formatted;
+  };
+
   const handleImageUpload = async (file) => {
     if (!file) return;
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
+    if (!file.type.startsWith("image/")) {
       setError("Please upload only image files");
       return;
     }
 
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       setError("Image size should be less than 5MB");
       return;
@@ -115,25 +147,22 @@ function UserChat({ userId }) {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("upload_preset", "your_preset");
+      formData.append("upload_preset", import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "default_preset");
 
-      // Upload to Cloudinary with progress tracking
-      const cloudinaryRes = await axios.post(
-        "https://api.cloudinary.com/v1_1/your_cloud_name/image/upload",
-        formData,
-        {
-          onUploadProgress: (progressEvent) => {
-            const percentCompleted = Math.round(
-              (progressEvent.loaded * 100) / progressEvent.total
-            );
-            setUploadProgress(percentCompleted);
-          },
-        }
-      );
+      const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+      const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
+
+      const cloudinaryRes = await axios.post(uploadUrl, formData, {
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total
+          );
+          setUploadProgress(percentCompleted);
+        },
+      });
 
       const imageUrl = cloudinaryRes.data.secure_url;
 
-      // Add user's image message
       const userImgMsg = {
         sender: "user",
         content: "📷 Image",
@@ -142,7 +171,6 @@ function UserChat({ userId }) {
       };
       setMessages((prev) => [...prev, userImgMsg]);
 
-      // Send image to bot
       const resp = await axios.post(
         `${import.meta.env.VITE_FAST_API_BASE}/api/web-chat/send-image`,
         { user_id: userId, image_url: imageUrl },
@@ -182,6 +210,18 @@ function UserChat({ userId }) {
     });
   };
 
+  const handleImageClick = (imageUrl) => {
+    setSelectedImage(imageUrl);
+    setShowImageModal(true);
+    document.body.style.overflow = 'hidden';
+  };
+
+  const closeImageModal = () => {
+    setShowImageModal(false);
+    setSelectedImage(null);
+    document.body.style.overflow = 'auto';
+  };
+
   return (
     <div className="user-chat-page-wrapper">
       <MDBContainer fluid className="user-chat-page-container">
@@ -191,7 +231,7 @@ function UserChat({ userId }) {
             <div className="user-chat-page-header">
               <div className="user-chat-page-header-content">
                 <div className="user-chat-page-header-avatar">
-                  <MDBIcon fas icon="robot" />
+                  <i className="fas fa-robot"></i>
                 </div>
                 <div className="user-chat-page-header-info">
                   <h5 className="user-chat-page-header-title">Huts & Farms Assistant</h5>
@@ -203,7 +243,7 @@ function UserChat({ userId }) {
               </div>
               <div className="user-chat-page-header-actions">
                 <button className="user-chat-page-icon-btn" onClick={loadChatHistory}>
-                  <MDBIcon fas icon="sync-alt" />
+                  <i className="fas fa-sync-alt"></i>
                 </button>
               </div>
             </div>
@@ -218,7 +258,7 @@ function UserChat({ userId }) {
                   </div>
                 ) : messages.length === 0 ? (
                   <div className="user-chat-page-empty-state">
-                    <MDBIcon fas icon="comments" className="user-chat-page-empty-icon" />
+                    <i className="fas fa-comments user-chat-page-empty-icon"></i>
                     <h4>Start a Conversation</h4>
                     <p>Send a message to begin chatting with our assistant</p>
                   </div>
@@ -234,13 +274,17 @@ function UserChat({ userId }) {
                     >
                       {msg.sender === "bot" && (
                         <div className="user-chat-page-message-avatar">
-                          <MDBIcon fas icon="robot" />
+                          <i className="fas fa-robot"></i>
                         </div>
                       )}
                       <div className="user-chat-page-bubble">
-                        <span className="user-chat-page-message-content">
-                          {msg.content}
-                        </span>
+                        <span
+                          className="user-chat-page-message-content"
+                          dangerouslySetInnerHTML={{
+                            __html: msg.sender === "bot" ? formatBotMessage(msg.content) : msg.content,
+                          }}
+                        />
+
                         {msg.media_urls?.images?.map((img, idx) => (
                           <img
                             key={idx}
@@ -248,6 +292,7 @@ function UserChat({ userId }) {
                             alt="attachment"
                             className="user-chat-page-image"
                             loading="lazy"
+                            onClick={() => handleImageClick(img)}
                           />
                         ))}
                         {msg.media_urls?.videos?.map((vid, idx) => (
@@ -264,7 +309,7 @@ function UserChat({ userId }) {
                       </div>
                       {msg.sender === "user" && (
                         <div className="user-chat-page-message-avatar user-chat-page-user-avatar">
-                          <MDBIcon fas icon="user" />
+                          <i className="fas fa-user"></i>
                         </div>
                       )}
                     </div>
@@ -274,7 +319,7 @@ function UserChat({ userId }) {
                 {isSending && (
                   <div className="user-chat-page-message user-chat-page-bot-message">
                     <div className="user-chat-page-message-avatar">
-                      <MDBIcon fas icon="robot" />
+                      <i className="fas fa-robot"></i>
                     </div>
                     <div className="user-chat-page-typing-indicator">
                       <span></span>
@@ -303,13 +348,13 @@ function UserChat({ userId }) {
               {/* Error Message */}
               {error && (
                 <div className="user-chat-page-error-banner">
-                  <MDBIcon fas icon="exclamation-triangle" className="me-2" />
-                  {error}
+                  <i className="fas fa-exclamation-triangle"></i>
+                  <span>{error}</span>
                   <button
                     className="user-chat-page-error-close"
                     onClick={() => setError("")}
                   >
-                    <MDBIcon fas icon="times" />
+                    <i className="fas fa-times"></i>
                   </button>
                 </div>
               )}
@@ -321,7 +366,7 @@ function UserChat({ userId }) {
                   className="user-chat-page-upload-btn"
                   title="Attach image"
                 >
-                  <MDBIcon fas icon="paperclip" />
+                  <i className="fas fa-paperclip"></i>
                 </label>
                 <input
                   ref={fileInputRef}
@@ -355,7 +400,7 @@ function UserChat({ userId }) {
                   {isSending ? (
                     <MDBSpinner size="sm" color="light" />
                   ) : (
-                    <MDBIcon fas icon="paper-plane" />
+                    <i className="fas fa-paper-plane"></i>
                   )}
                 </MDBBtn>
               </div>
@@ -363,6 +408,33 @@ function UserChat({ userId }) {
           </MDBCol>
         </MDBRow>
       </MDBContainer>
+
+      {/* Custom Image Modal */}
+      {showImageModal && (
+        <div className="user-chat-page-image-modal" onClick={closeImageModal}>
+          <div className="user-chat-page-modal-overlay"></div>
+          <div className="user-chat-page-modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="user-chat-page-modal-close" onClick={closeImageModal}>
+              <i className="fas fa-times"></i>
+            </button>
+            <img
+              src={selectedImage}
+              alt="Full size"
+              className="user-chat-page-modal-image"
+            />
+            <a
+              href={selectedImage}
+              download
+              className="user-chat-page-modal-download"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <i className="fas fa-download"></i>
+              <span>Download Image</span>
+            </a>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
