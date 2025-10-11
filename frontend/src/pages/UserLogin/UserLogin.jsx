@@ -51,9 +51,10 @@ const UserLogin = () => {
         // Store token and user data
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
-        
+        console.log('Login successful:', data);
         // Redirect to dashboard or home
-        navigate('/dashboard');
+        navigate('/chat');
+        
       } else {
         setError(data.error || 'Login failed. Please try again.');
       }
