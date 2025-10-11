@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef,useLayoutEffect } from "react";
 import axios from "axios";
 import "./UserChat.css";
 import { 
@@ -37,9 +37,20 @@ function UserChat() {
     if (userId) loadChatHistory();
   }, [userId]);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+//   useEffect(() => {
+//     scrollToBottom();
+//   }, [messages]);
+
+useLayoutEffect(() => {
+  if (messages.length > 0) {
+    const timeout = setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: isLoading ? "auto" : "smooth" });
+    }, 100);
+    return () => clearTimeout(timeout);
+  }
+}, [messages, isLoading]);
+
+
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -68,6 +79,9 @@ function UserChat() {
 
       setMessages(normalizedMessages);
       console.log(response.data);
+    //   setTimeout(() => {
+    //   scrollToBottom();
+    // }, 200);
       setError("");
     } catch (error) {
       console.error("Failed to load history:", error);

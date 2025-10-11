@@ -6,53 +6,58 @@ import UserLogin from "./pages/UserLogin/UserLogin";
 import UserSignup from "./pages/UserSignup/UserSignup";
 import UserChat from "./pages/UserChat/UserChat";
 
-import AdminLogin from "./pages/Login/Login"; // Renamed for clarity
+import AdminLogin from "./pages/Login/Login";
 import Dashboard from "./pages/dashboard/dashboard";
 import Bookings from "./pages/bookings/bookings";
 import AddBooking from "./pages/add-booking/add-booking";
 
-function App() {
-  const propertyToken = localStorage.getItem("propertyToken"); // Admin token
-  const userToken = localStorage.getItem("token"); // User token
+import ProtectedRoute from "./components/ProtectedRoute";
 
+function App() {
   return (
     <Routes>
       {/* ---------- PUBLIC ROUTES ---------- */}
-      <Route path="/login" element={<UserLogin />} />          {/* User login */}
-      <Route path="/register" element={<UserSignup />} />      {/* User signup */}
-      <Route path="/admin-login" element={<AdminLogin />} />   {/* Admin login */}
+      <Route path="/login" element={<UserLogin />} />
+      <Route path="/register" element={<UserSignup />} />
+      <Route path="/admin-login" element={<AdminLogin />} />
 
       {/* ---------- USER PROTECTED ROUTES ---------- */}
-      {userToken ? (
-        <>
-          <Route path="/chat" element={<UserChat />} />
-          {/* Default route for logged-in user */}
-          <Route path="*" element={<Navigate to="/chat" />} />
-        </>
-      ) : (
-        <>
-          <Route path="/chat" element={<Navigate to="/login" />} />
-        </>
-      )}
+      <Route
+        path="/chat"
+        element={
+          <ProtectedRoute tokenKey="token" redirectTo="/login">
+            <UserChat />
+          </ProtectedRoute>
+        }
+      />
 
       {/* ---------- ADMIN PROTECTED ROUTES ---------- */}
-      {propertyToken ? (
-        <>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/bookings" element={<Bookings />} />
-          <Route path="/add-booking" element={<AddBooking />} />
-          {/* Default route for logged-in admin */}
-          <Route path="*" element={<Navigate to="/dashboard" />} />
-        </>
-      ) : (
-        <>
-          <Route path="/dashboard" element={<Navigate to="/admin-login" />} />
-          <Route path="/bookings" element={<Navigate to="/admin-login" />} />
-          <Route path="/add-booking" element={<Navigate to="/admin-login" />} />
-        </>
-      )}
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute tokenKey="propertyToken" redirectTo="/admin-login">
+            <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/bookings"
+        element={
+          <ProtectedRoute tokenKey="propertyToken" redirectTo="/admin-login">
+            <Bookings />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/add-booking"
+        element={
+          <ProtectedRoute tokenKey="propertyToken" redirectTo="/admin-login">
+            <AddBooking />
+          </ProtectedRoute>
+        }
+      />
 
-      {/* ---------- DEFAULT (Catch-all) ---------- */}
+      {/* ---------- DEFAULT ---------- */}
       <Route path="*" element={<Navigate to="/login" />} />
     </Routes>
   );
