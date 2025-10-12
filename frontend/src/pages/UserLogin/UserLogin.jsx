@@ -79,7 +79,7 @@ const UserLogin = () => {
               </div>
               <h1 className="user-login-page-brand-title">Huts & Farms</h1>
               <p className="user-login-page-brand-subtitle">
-                Your gateway to sustainable living and agricultural excellence
+                Do your Huts & Farms booking with us!
               </p>
               <div className="user-login-page-features">
                 <div className="user-login-page-feature-item">
@@ -88,7 +88,7 @@ const UserLogin = () => {
                 </div>
                 <div className="user-login-page-feature-item">
                   <MDBIcon fas icon="check-circle" className="user-login-page-feature-icon" />
-                  <span>Real-time Property Management</span>
+                  <span>One place for everything</span>
                 </div>
                 <div className="user-login-page-feature-item">
                   <MDBIcon fas icon="check-circle" className="user-login-page-feature-icon" />

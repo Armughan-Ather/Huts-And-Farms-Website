@@ -177,7 +177,7 @@ const UserSignup = () => {
               </div>
               <h1 className="user-signup-page-brand-title">Huts & Farms</h1>
               <p className="user-signup-page-brand-subtitle">
-                Join us today and start your journey towards sustainable living
+                Join us today and do instant booking of Huts & Farms!
               </p>
               <div className="user-signup-page-features">
                 <div className="user-signup-page-feature-item">
@@ -190,12 +190,12 @@ const UserSignup = () => {
                 </div>
                 <div className="user-signup-page-feature-item">
                   <MDBIcon fas icon="headset" className="user-signup-page-feature-icon" />
-                  <span>Dedicated Support Team</span>
+                  <span>24/7 Availability</span>
                 </div>
-                <div className="user-signup-page-feature-item">
+                {/* <div className="user-signup-page-feature-item">
                   <MDBIcon fas icon="chart-line" className="user-signup-page-feature-icon" />
                   <span>Track Your Properties</span>
-                </div>
+                </div> */}
               </div>
             </div>
           </MDBCol>
