@@ -1,18 +1,9 @@
-import React from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
-import "./App.css";
-
-import UserLogin from "./pages/UserLogin/UserLogin";
-import UserSignup from "./pages/UserSignup/UserSignup";
-import UserChat from "./pages/UserChat/UserChat";
-
-import AdminLogin from "./pages/Login/Login";
-import Dashboard from "./pages/dashboard/dashboard";
-import Bookings from "./pages/bookings/bookings";
-import AddBooking from "./pages/add-booking/add-booking";
-
-import ProtectedRoute from "./components/ProtectedRoute";
-import {jwtDecode} from "jwt-decode"; // ✅ Needed for token validation
+import React, { useState, useEffect } from 'react';
+import Login from './pages/login/login';
+import Dashboard from './pages/dashboard/dashboard';
+import Bookings from './pages/bookings/bookings';
+import AddBooking from './pages/add-booking/add-booking';
+import './App.css';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('login');
