@@ -508,6 +508,16 @@
 .user-chat-page-send-btn i {
   font-size: 18px;
 }
+.user-chat-page-logout-btn {
+  background: #ef4444 !important;
+  color: white !important;
+}
+
+.user-chat-page-logout-btn:hover {
+  background: #dc2626 !important;
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
 
 /* Responsive Design */
 @media (max-width: 768px) {
@@ -529,6 +539,11 @@
 
   .user-chat-page-bubble img {
     max-height: 280px;
+  }
+  .user-chat-page-logout-btn {
+    width: 35px;
+    height: 35px;
+    font-size: 14px;
   }
 }
 
