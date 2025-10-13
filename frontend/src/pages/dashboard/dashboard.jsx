@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import EditPropertyModal from '../edit-property/edit-property';
+import MediaManager from '../../components/MediaManager';
 import './dashboard.css';
 
 const Dashboard = () => {
@@ -7,6 +9,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
+  const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => {
     fetchPropertyData();
@@ -21,7 +24,7 @@ const Dashboard = () => {
         return;
       }
 
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
       const response = await axios.get(`${backendUrl}/api/properties`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -32,7 +35,7 @@ const Dashboard = () => {
       setLoading(false);
     } catch (err) {
       console.log('Error fetching property data:', err);
-      
+
       if (err.response?.status === 401) {
         setError('Authentication failed. Please login again.');
         localStorage.removeItem('propertyToken');
@@ -49,8 +52,15 @@ const Dashboard = () => {
   };
 
   const handleEdit = () => {
-    // TODO: Navigate to edit page
-    alert('Edit functionality will be implemented here');
+    setShowEditModal(true);
+  };
+
+  const handlePropertyUpdated = () => {
+    fetchPropertyData();
+  };
+
+  const handleMediaUpdated = () => {
+    fetchPropertyData();
   };
 
   const handleBookings = () => {
@@ -127,31 +137,31 @@ const Dashboard = () => {
 
       {/* Navigation Tabs */}
       <div className="dashboard-page-tabs">
-        <button 
+        <button
           className={`dashboard-page-tab-button ${activeTab === 'overview' ? 'dashboard-page-active' : ''}`}
           onClick={() => setActiveTab('overview')}
         >
           Overview
         </button>
-        <button 
+        <button
           className={`dashboard-page-tab-button ${activeTab === 'details' ? 'dashboard-page-active' : ''}`}
           onClick={() => setActiveTab('details')}
         >
           Details
         </button>
-        <button 
+        <button
           className={`dashboard-page-tab-button ${activeTab === 'pricing' ? 'dashboard-page-active' : ''}`}
           onClick={() => setActiveTab('pricing')}
         >
           Pricing
         </button>
-        <button 
+        <button
           className={`dashboard-page-tab-button ${activeTab === 'amenities' ? 'dashboard-page-active' : ''}`}
           onClick={() => setActiveTab('amenities')}
         >
           Amenities
         </button>
-        <button 
+        <button
           className={`dashboard-page-tab-button ${activeTab === 'media' ? 'dashboard-page-active' : ''}`}
           onClick={() => setActiveTab('media')}
         >
@@ -321,7 +331,7 @@ const Dashboard = () => {
                       <span className="dashboard-page-value">{pricing.special_offer_note || 'No special offers'}</span>
                     </div>
                   </div>
-                  
+
                   {pricing.shift_pricing && pricing.shift_pricing.length > 0 && (
                     <div className="dashboard-page-shift-pricing">
                       <h4>Shift-based Pricing</h4>
@@ -377,53 +387,21 @@ const Dashboard = () => {
         {/* Media Tab */}
         {activeTab === 'media' && (
           <div className="dashboard-page-tab-content">
-            <div className="dashboard-page-media-section">
-              {/* Images */}
-              {images && images.length > 0 && (
-                <div className="dashboard-page-media-group">
-                  <h3>Images ({images.length})</h3>
-                  <div className="dashboard-page-images-grid">
-                    {images.map((image, index) => (
-                      <div key={index} className="dashboard-page-image-item">
-                        <img src={image.image_url} alt={`Property image ${index + 1}`} />
-                        <div className="dashboard-page-image-info">
-                          <span>Uploaded: {new Date(image.uploaded_at).toLocaleDateString()}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Videos */}
-              {videos && videos.length > 0 && (
-                <div className="dashboard-page-media-group">
-                  <h3>Videos ({videos.length})</h3>
-                  <div className="dashboard-page-videos-grid">
-                    {videos.map((video, index) => (
-                      <div key={index} className="dashboard-page-video-item">
-                        <video controls>
-                          <source src={video.video_url} type="video/mp4" />
-                          Your browser does not support the video tag.
-                        </video>
-                        <div className="dashboard-page-video-info">
-                          <span>Uploaded: {new Date(video.uploaded_at).toLocaleDateString()}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {(!images || images.length === 0) && (!videos || videos.length === 0) && (
-                <div className="dashboard-page-no-data">
-                  <p>No media files available.</p>
-                </div>
-              )}
-            </div>
+            <MediaManager
+              propertyData={propertyData}
+              onMediaUpdated={handleMediaUpdated}
+            />
           </div>
         )}
       </div>
+
+      {/* Edit Property Modal */}
+      <EditPropertyModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        propertyData={propertyData}
+        onPropertyUpdated={handlePropertyUpdated}
+      />
     </div>
   );
 };
