@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import EditPropertyModal from '../edit-property/edit-property';
-import MediaManager from '../../components/MediaManager';
+import MediaManager from '../../components/media-manager/media-manager';
+import EditPricingModal from '../../components/edit-pricing/edit-pricing';
+import EditAmenitiesModal from '../../components/edit-amenities/edit-amenities';
 import './dashboard.css';
 
 const Dashboard = () => {
@@ -10,6 +12,8 @@ const Dashboard = () => {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showPricingModal, setShowPricingModal] = useState(false);
+  const [showAmenitiesModal, setShowAmenitiesModal] = useState(false);
 
   useEffect(() => {
     fetchPropertyData();
@@ -60,6 +64,14 @@ const Dashboard = () => {
   };
 
   const handleMediaUpdated = () => {
+    fetchPropertyData();
+  };
+
+  const handlePricingUpdated = () => {
+    fetchPropertyData();
+  };
+
+  const handleAmenitiesUpdated = () => {
     fetchPropertyData();
   };
 
@@ -118,8 +130,15 @@ const Dashboard = () => {
       <div className="dashboard-page-header">
         <div className="dashboard-page-header-content">
           <div className="dashboard-page-header-left">
-            <h1 className="dashboard-page-property-name">{property.name}</h1>
-            <p className="dashboard-page-property-type">{property.type}</p>
+            <div className="dashboard-page-logo">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M10 20V14H14V20H19V12H22L12 3L2 12H5V20H10Z" fill="white"/>
+              </svg>
+            </div>
+            <div className="dashboard-page-title-section">
+              <h1 className="dashboard-page-property-name">{property.name}</h1>
+              <p className="dashboard-page-property-type">{property.type} Property</p>
+            </div>
           </div>
           <div className="dashboard-page-header-right">
             <button onClick={handleEdit} className="dashboard-page-edit-button">
@@ -315,7 +334,15 @@ const Dashboard = () => {
           <div className="dashboard-page-tab-content">
             {pricing ? (
               <div className="dashboard-page-pricing-section">
-                <h3>Pricing Information</h3>
+                <div className="dashboard-page-pricing-header">
+                  <h3>Pricing Information</h3>
+                  <button 
+                    onClick={() => setShowPricingModal(true)} 
+                    className="dashboard-page-edit-pricing-btn"
+                  >
+                    ✏️ Edit Pricing
+                  </button>
+                </div>
                 <div className="dashboard-page-pricing-card">
                   <div className="dashboard-page-pricing-info">
                     <div className="dashboard-page-info-item">
@@ -356,6 +383,12 @@ const Dashboard = () => {
             ) : (
               <div className="dashboard-page-no-data">
                 <p>No pricing information available.</p>
+                <button 
+                  onClick={() => setShowPricingModal(true)} 
+                  className="dashboard-page-add-pricing-btn"
+                >
+                  💰 Add Pricing
+                </button>
               </div>
             )}
           </div>
@@ -366,7 +399,15 @@ const Dashboard = () => {
           <div className="dashboard-page-tab-content">
             {amenities && amenities.length > 0 ? (
               <div className="dashboard-page-amenities-section">
-                <h3>Amenities</h3>
+                <div className="dashboard-page-amenities-header">
+                  <h3>Amenities</h3>
+                  <button 
+                    onClick={() => setShowAmenitiesModal(true)} 
+                    className="dashboard-page-edit-amenities-btn"
+                  >
+                    ✏️ Edit Amenities
+                  </button>
+                </div>
                 <div className="dashboard-page-amenities-grid">
                   {amenities.map((amenity, index) => (
                     <div key={index} className="dashboard-page-amenity-item">
@@ -379,6 +420,12 @@ const Dashboard = () => {
             ) : (
               <div className="dashboard-page-no-data">
                 <p>No amenities information available.</p>
+                <button 
+                  onClick={() => setShowAmenitiesModal(true)} 
+                  className="dashboard-page-add-amenities-btn"
+                >
+                  🏠 Add Amenities
+                </button>
               </div>
             )}
           </div>
@@ -401,6 +448,22 @@ const Dashboard = () => {
         onClose={() => setShowEditModal(false)}
         propertyData={propertyData}
         onPropertyUpdated={handlePropertyUpdated}
+      />
+
+      {/* Edit Pricing Modal */}
+      <EditPricingModal
+        isOpen={showPricingModal}
+        onClose={() => setShowPricingModal(false)}
+        propertyData={propertyData}
+        onPricingUpdated={handlePricingUpdated}
+      />
+
+      {/* Edit Amenities Modal */}
+      <EditAmenitiesModal
+        isOpen={showAmenitiesModal}
+        onClose={() => setShowAmenitiesModal(false)}
+        propertyData={propertyData}
+        onAmenitiesUpdated={handleAmenitiesUpdated}
       />
     </div>
   );
