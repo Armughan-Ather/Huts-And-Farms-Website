@@ -337,8 +337,8 @@ export const addProperty = async (req, res) => {
     const shiftPricingRecords = [];
     for (const shift of pricingData.shift_pricing) {
       if (!['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].includes(shift.day_of_week) ||
-          !['Day', 'Night', 'Full Day', 'Full Night'].includes(shift.shift_type) ||
-          isNaN(shift.price)) {
+        !['Day', 'Night', 'Full Day', 'Full Night'].includes(shift.shift_type) ||
+        isNaN(shift.price)) {
         await transaction.rollback();
         return res.status(400).json({ error: 'Invalid shift pricing: must include valid day_of_week, shift_type, and price' });
       }
@@ -589,6 +589,87 @@ export const editProperty = async (req, res) => {
 
 
 
+// Controller to edit amenities for a property
+export const editPropertyAmenities = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    // Validate model imports
+    if (!Property || !PropertyAmenity) {
+      throw new Error('One or more models are undefined. Check models/index.js exports.');
+    }
+
+    const { property_id, amenities } = req.body;
+
+    // Validate required fields
+    if (!property_id) {
+      await transaction.rollback();
+      return res.status(400).json({ error: 'Missing required field: property_id' });
+    }
+
+    // Validate property exists
+    const property = await Property.findOne({ where: { property_id }, transaction });
+    if (!property) {
+      await transaction.rollback();
+      return res.status(404).json({ error: 'Property not found' });
+    }
+
+    // Parse amenities data if it's a string
+    let amenitiesData;
+    try {
+      amenitiesData = typeof amenities === 'string' ? JSON.parse(amenities) : amenities;
+    } catch (parseError) {
+      await transaction.rollback();
+      return res.status(400).json({ error: 'Invalid JSON format for amenities', details: parseError.message });
+    }
+
+    // Validate amenities data
+    if (amenitiesData && Array.isArray(amenitiesData)) {
+      for (const amenity of amenitiesData) {
+        if (!amenity.type || !amenity.value) {
+          await transaction.rollback();
+          return res.status(400).json({ error: 'Invalid amenities: each amenity must have type and value' });
+        }
+        // Normalize amenity type to lowercase
+        amenity.type = amenity.type.toLowerCase();
+      }
+    }
+
+    // Delete existing amenities
+    await PropertyAmenity.destroy({ where: { property_id }, transaction });
+
+    // Create new amenities
+    const amenityRecords = [];
+    if (amenitiesData && Array.isArray(amenitiesData) && amenitiesData.length > 0) {
+      for (const amenity of amenitiesData) {
+        if (amenity.type && amenity.value) { // Only create if both type and value exist
+          const record = await PropertyAmenity.create({
+            amenity_id: uuidv4(),
+            property_id,
+            type: amenity.type.toLowerCase(),
+            value: amenity.value,
+          }, { transaction });
+          amenityRecords.push(record);
+        }
+      }
+    }
+
+    await transaction.commit();
+
+    // Return response
+    res.status(200).json({
+      message: 'Amenities updated successfully',
+      amenities: amenityRecords,
+    });
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Error updating property amenities:', error);
+    res.status(500).json({
+      error: 'Failed to update property amenities',
+      details: error.message,
+    });
+  }
+};
+
 // Controller to delete images and videos for a property
 export const deletePropertyMedia = async (req, res) => {
   const transaction = await sequelize.transaction();
@@ -600,7 +681,7 @@ export const deletePropertyMedia = async (req, res) => {
     console.log('Delete media request body:', req.body);
 
     const { property_id, image_ids, video_ids } = req.body;
-    
+
 
     // Validate required fields
     if (!property_id) {
@@ -695,6 +776,128 @@ export const deletePropertyMedia = async (req, res) => {
     console.error('Error deleting property media:', error);
     res.status(500).json({
       error: 'Failed to delete property media',
+      details: error.message,
+    });
+  }
+};
+
+// Controller to edit pricing for a property
+export const editPropertyPricing = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    // Validate model imports
+    if (!Property || !PropertyPricing || !PropertyShiftPricing) {
+      throw new Error('One or more models are undefined. Check models/index.js exports.');
+    }
+
+    const { property_id, pricing_data } = req.body;
+
+    // Validate required fields
+    if (!property_id || !pricing_data) {
+      await transaction.rollback();
+      return res.status(400).json({ error: 'Missing required fields: property_id and pricing_data' });
+    }
+
+    // Validate property exists
+    const property = await Property.findOne({ where: { property_id }, transaction });
+    if (!property) {
+      await transaction.rollback();
+      return res.status(404).json({ error: 'Property not found' });
+    }
+
+    // Parse pricing data if it's a string
+    let pricingData;
+    try {
+      pricingData = typeof pricing_data === 'string' ? JSON.parse(pricing_data) : pricing_data;
+    } catch (parseError) {
+      await transaction.rollback();
+      return res.status(400).json({ error: 'Invalid JSON format for pricing_data', details: parseError.message });
+    }
+
+    // Validate pricing data structure
+    if (!pricingData.season_start_date || !pricingData.season_end_date) {
+      await transaction.rollback();
+      return res.status(400).json({ error: 'season_start_date and season_end_date are required' });
+    }
+
+    // Find existing pricing
+    let propertyPricing = await PropertyPricing.findOne({ where: { property_id }, transaction });
+
+    if (propertyPricing) {
+      // Update existing pricing
+      await PropertyPricing.update({
+        season_start_date: new Date(pricingData.season_start_date),
+        season_end_date: new Date(pricingData.season_end_date),
+        special_offer_note: pricingData.special_offer_note || null,
+      }, { where: { property_id }, transaction });
+
+      // Get updated pricing
+      propertyPricing = await PropertyPricing.findOne({ where: { property_id }, transaction });
+    } else {
+      // Create new pricing
+      propertyPricing = await PropertyPricing.create({
+        pricing_id: uuidv4(),
+        property_id,
+        season_start_date: new Date(pricingData.season_start_date),
+        season_end_date: new Date(pricingData.season_end_date),
+        special_offer_note: pricingData.special_offer_note || null,
+      }, { transaction });
+    }
+
+    // Handle shift pricing updates
+    if (pricingData.shift_pricing && Array.isArray(pricingData.shift_pricing)) {
+      // Delete existing shift pricing
+      await PropertyShiftPricing.destroy({ where: { pricing_id: propertyPricing.pricing_id }, transaction });
+
+      // Create new shift pricing
+      const shiftPricingRecords = [];
+      for (const shift of pricingData.shift_pricing) {
+        if (!['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].includes(shift.day_of_week) ||
+          !['Day', 'Night', 'Full Day', 'Full Night'].includes(shift.shift_type) ||
+          isNaN(shift.price)) {
+          await transaction.rollback();
+          return res.status(400).json({ error: 'Invalid shift pricing: must include valid day_of_week, shift_type, and price' });
+        }
+        const record = await PropertyShiftPricing.create({
+          id: uuidv4(),
+          pricing_id: propertyPricing.pricing_id,
+          day_of_week: shift.day_of_week,
+          shift_type: shift.shift_type,
+          price: parseFloat(shift.price),
+        }, { transaction });
+        shiftPricingRecords.push(record);
+      }
+    }
+
+    await transaction.commit();
+
+    // Fetch updated pricing with shift pricing
+    const updatedPricing = await PropertyPricing.findOne({
+      where: { property_id },
+      include: [
+        {
+          model: PropertyShiftPricing,
+          attributes: ['id', 'day_of_week', 'shift_type', 'price'],
+        },
+      ],
+    });
+
+    // Return response
+    res.status(200).json({
+      message: 'Pricing updated successfully',
+      pricing: {
+        pricing_id: updatedPricing.pricing_id,
+        season_start_date: updatedPricing.season_start_date,
+        season_end_date: updatedPricing.season_end_date,
+        special_offer_note: updatedPricing.special_offer_note,
+        shift_pricing: updatedPricing.PropertyShiftPricings || [],
+      },
+    });
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Error updating property pricing:', error);
+    res.status(500).json({
+      error: 'Failed to update property pricing',
       details: error.message,
     });
   }
@@ -931,12 +1134,12 @@ export const getProperty = async (req, res) => {
       },
       pricing: property.PropertyPricing
         ? {
-            pricing_id: property.PropertyPricing.pricing_id,
-            season_start_date: property.PropertyPricing.season_start_date,
-            season_end_date: property.PropertyPricing.season_end_date,
-            special_offer_note: property.PropertyPricing.special_offer_note,
-            shift_pricing: property.PropertyPricing.PropertyShiftPricings || [],
-          }
+          pricing_id: property.PropertyPricing.pricing_id,
+          season_start_date: property.PropertyPricing.season_start_date,
+          season_end_date: property.PropertyPricing.season_end_date,
+          special_offer_note: property.PropertyPricing.special_offer_note,
+          shift_pricing: property.PropertyPricing.PropertyShiftPricings || [],
+        }
         : null,
       amenities: property.PropertyAmenities || [],
       images: property.PropertyImages || [],
