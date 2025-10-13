@@ -299,7 +299,7 @@ useLayoutEffect(() => {
                     <div
                       key={i}
                       className={`user-chat-page-message ${
-                        msg.sender === "user"
+                        msg.sender === "user" || msg.sender === "admin"
                           ? "user-chat-page-user-message"
                           : "user-chat-page-bot-message"
                       }`}
