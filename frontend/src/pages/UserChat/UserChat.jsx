@@ -227,12 +227,13 @@ useLayoutEffect(() => {
   };
 
   const formatTime = (timestamp) => {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+  const date = new Date(timestamp);
+  return date.toLocaleTimeString(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+};
 
   const handleImageClick = (imageUrl) => {
     setSelectedImage(imageUrl);
