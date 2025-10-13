@@ -6,7 +6,7 @@ import UserLogin from "./pages/UserLogin/UserLogin.jsx";
 import UserSignup from "./pages/UserSignup/UserSignup.jsx";
 import UserChat from "./pages/UserChat/UserChat.jsx";
 
-import AdminLogin from "./pages/Login/login.jsx";
+import AdminLogin from "./pages/login/login.jsx";
 import Dashboard from "./pages/dashboard/dashboard.jsx";
 import Bookings from "./pages/bookings/bookings.jsx";
 import AddBooking from "./pages/add-booking/add-booking.jsx";
