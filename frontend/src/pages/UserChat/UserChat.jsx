@@ -30,7 +30,7 @@ function UserChat() {
     if (storedUser) {
       setUserId(JSON.parse(storedUser).user_id);
     } else {
-      window.location.href = "/login";
+      navigate("/login");
     }
   }, []);
 
@@ -45,6 +45,9 @@ const handleLogout = () => {
   // Remove items from localStorage
   localStorage.removeItem('token');
   localStorage.removeItem('user');
+  setUserId(null);
+  setMessages([]);
+  setInputMessage("");
   // Navigate to login page
   navigate('/login');
 };
