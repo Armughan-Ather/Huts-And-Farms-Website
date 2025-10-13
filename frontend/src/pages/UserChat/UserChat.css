@@ -481,17 +481,19 @@
 }
 
 .user-chat-page-send-btn {
-  border-radius: 50%;
-  width: 50px;
-  height: 50px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-  transition: all 0.3s ease;
-  padding: 0;
+  border-radius: 50% !important;
+  width: 45px !important;
+  height: 45px !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4) !important;
+  transition: all 0.3s ease !important;
+  margin: 0 !important;
+  min-width: 45px !important;
 }
 
 .user-chat-page-send-btn:hover:not(:disabled) {
