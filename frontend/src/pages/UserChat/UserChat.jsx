@@ -10,7 +10,7 @@ import {
   MDBIcon,
   MDBSpinner 
 } from "mdb-react-ui-kit";
-
+import { useNavigate } from "react-router-dom";
 function UserChat() {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
@@ -23,6 +23,7 @@ function UserChat() {
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const [userId, setUserId] = useState(null);
+    const navigate = useNavigate();
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -40,7 +41,13 @@ function UserChat() {
 //   useEffect(() => {
 //     scrollToBottom();
 //   }, [messages]);
-
+const handleLogout = () => {
+  // Remove items from localStorage
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  // Navigate to login page
+  navigate('/login');
+};
 useLayoutEffect(() => {
   if (messages.length > 0) {
     const timeout = setTimeout(() => {
@@ -259,6 +266,14 @@ useLayoutEffect(() => {
                 <button className="user-chat-page-icon-btn" onClick={loadChatHistory}>
                   <i className="fas fa-sync-alt"></i>
                 </button>
+                
+  <button 
+    className="user-chat-page-icon-btn user-chat-page-logout-btn" 
+    onClick={handleLogout} 
+    title="Logout"
+  >
+    <MDBIcon fas icon="sign-out-alt" />
+  </button>
               </div>
             </div>
 
