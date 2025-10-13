@@ -75,23 +75,47 @@ useLayoutEffect(() => {
         { headers: { "Content-Type": "application/json" } }
       );
 
-      const normalizedMessages = (response.data || []).map(msg => {
-        const imageUrlMatch = msg.content?.match(/https?:\/\/[^\s]+/);
-        if (imageUrlMatch && imageUrlMatch[0].includes("res.cloudinary.com")) {
-          return {
-            ...msg,
-            media_urls: { images: [imageUrlMatch[0]] },
-            content: "📷 Image",
-          };
-        }
-        return msg;
-      });
+//       const normalizedMessages = (response.data || []).map(msg => {
+//         // Add this near your normalizedMessages mapping
+// console.log('Message timestamp debug:', {
+//   original: msg.timestamp,
+//   parsed: new Date(msg.timestamp).toISOString(),
+//   localFormatted: formatTime(msg.timestamp),
+//   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+// });
+//         const imageUrlMatch = msg.content?.match(/https?:\/\/[^\s]+/);
+//         if (imageUrlMatch && imageUrlMatch[0].includes("res.cloudinary.com")) {
+//           return {
+//             ...msg,
+//             media_urls: { images: [imageUrlMatch[0]] },
+//             content: "📷 Image",
+//           };
+//         }
+//         return msg;
+//       });
+const normalizedMessages = (response.data || []).map(msg => {
+  const imageUrlMatch = msg.content?.match(/https?:\/\/[^\s]+/);
+  
+  // Keep the original timestamp from the server
+  let timestamp = msg.timestamp;
+if (timestamp && !/Z|[+-]\d\d:?(\d\d)?$/.test(timestamp)) {
+  // If no timezone info, assume UTC
+  timestamp += "Z";
+}
 
+
+  return {
+    ...msg,
+    timestamp,
+    ...(imageUrlMatch && imageUrlMatch[0].includes("res.cloudinary.com") && {
+      media_urls: { images: [imageUrlMatch[0]] },
+      content: "📷 Image"
+    })
+  };
+});
       setMessages(normalizedMessages);
       console.log(response.data);
-    //   setTimeout(() => {
-    //   scrollToBottom();
-    // }, 200);
+    
       setError("");
     } catch (error) {
       console.error("Failed to load history:", error);
@@ -109,7 +133,7 @@ useLayoutEffect(() => {
       content: inputMessage,
       timestamp: new Date().toISOString(),
     };
-    
+   
     setMessages((prev) => [...prev, userMsg]);
     setInputMessage("");
     setIsSending(true);
@@ -227,13 +251,36 @@ useLayoutEffect(() => {
   };
 
   const formatTime = (timestamp) => {
-  const date = new Date(timestamp);
-  return date.toLocaleTimeString(undefined, {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true
-  });
+  try {
+    if (!timestamp) return "";
+
+    // --- Step 1: Normalize ---
+    // Some backends send timestamps without timezone (e.g. "2025-10-14T09:00:00")
+    // We assume they are in UTC if no timezone info is provided
+    let normalized = timestamp;
+    if (!/Z|[+-]\d\d:?(\d\d)?$/.test(normalized)) {
+      normalized += "Z"; // treat as UTC
+    }
+
+    // --- Step 2: Parse Date Object ---
+    const date = new Date(normalized);
+    if (isNaN(date.getTime())) {
+      console.error("Invalid timestamp:", timestamp);
+      return "";
+    }
+
+    // --- Step 3: Convert to local time ---
+    return new Intl.DateTimeFormat(undefined, {
+      hour: "numeric",
+      minute: "numeric",
+      hour12: true,
+    }).format(date);
+  } catch (error) {
+    console.error("Error formatting timestamp:", error);
+    return "";
+  }
 };
+
 
   const handleImageClick = (imageUrl) => {
     setSelectedImage(imageUrl);
