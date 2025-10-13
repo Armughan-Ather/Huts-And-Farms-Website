@@ -12,14 +12,55 @@ import Bookings from "./pages/bookings/bookings";
 import AddBooking from "./pages/add-booking/add-booking";
 
 import ProtectedRoute from "./components/ProtectedRoute";
+import {jwtDecode} from "jwt-decode"; // ✅ Needed for token validation
 
 function App() {
+  // Helper function to check token validity
+  const isTokenValid = (tokenKey) => {
+    const token = localStorage.getItem(tokenKey);
+    if (!token) return false;
+
+    try {
+      const decoded = jwtDecode(token);
+      const exp = decoded?.exp;
+      return exp && exp * 1000 > Date.now();
+    } catch {
+      return false;
+    }
+  };
+
+  const hasUserToken = isTokenValid("token");
+  const hasAdminToken = isTokenValid("propertyToken");
+
   return (
     <Routes>
+      {/* ---------- ROOT ---------- */}
+      <Route
+        path="/"
+        element={
+          hasUserToken ? (
+            <Navigate to="/chat" />
+          ) : hasAdminToken ? (
+            <Navigate to="/dashboard" />
+          ) : (
+            <Navigate to="/login" />
+          )
+        }
+      />
+
       {/* ---------- PUBLIC ROUTES ---------- */}
-      <Route path="/login" element={<UserLogin />} />
-      <Route path="/register" element={<UserSignup />} />
-      <Route path="/admin-login" element={<AdminLogin />} />
+      <Route
+        path="/login"
+        element={hasUserToken ? <Navigate to="/chat" /> : <UserLogin />}
+      />
+      <Route
+        path="/register"
+        element={hasUserToken ? <Navigate to="/chat" /> : <UserSignup />}
+      />
+      <Route
+        path="/admin-login"
+        element={hasAdminToken ? <Navigate to="/dashboard" /> : <AdminLogin />}
+      />
 
       {/* ---------- USER PROTECTED ROUTES ---------- */}
       <Route
@@ -58,7 +99,7 @@ function App() {
       />
 
       {/* ---------- DEFAULT ---------- */}
-      <Route path="*" element={<Navigate to="/login" />} />
+      <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   );
 }

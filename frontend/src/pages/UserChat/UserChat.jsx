@@ -61,7 +61,7 @@ useLayoutEffect(() => {
     try {
       const response = await axios.post(
         `${import.meta.env.VITE_FAST_API_BASE}/api/web-chat/history`,
-        { user_id: userId, limit: 100 },
+        { user_id: userId, limit: 50 },
         { headers: { "Content-Type": "application/json" } }
       );
 

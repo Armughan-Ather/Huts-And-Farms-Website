@@ -154,7 +154,7 @@ const UserLogin = () => {
                     </div>
                   </div>
 
-                  <div className="user-login-page-options">
+                  {/* <div className="user-login-page-options">
                     <div className="user-login-page-remember">
                       <input type="checkbox" id="remember" className="user-login-page-checkbox" />
                       <label htmlFor="remember">Remember me</label>
@@ -162,7 +162,7 @@ const UserLogin = () => {
                     <a href="/forgot-password" className="user-login-page-forgot-link">
                       Forgot Password?
                     </a>
-                  </div>
+                  </div> */}
 
                   <MDBBtn
                     type="submit"
