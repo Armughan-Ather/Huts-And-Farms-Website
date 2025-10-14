@@ -136,7 +136,7 @@ const MediaManager = ({ propertyData, onMediaUpdated }) => {
         deleteData.video_ids = selectedVideos;
       }
 
-      const response = await axios.delete(`${backendUrl}/api/properties/delete/media`, {
+      const response = await axios.delete(`${backendUrl}properties/delete/media`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
