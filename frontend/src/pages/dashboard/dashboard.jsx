@@ -6,6 +6,130 @@ import EditPricingModal from '../../components/edit-pricing/edit-pricing';
 import EditAmenitiesModal from '../../components/edit-amenities/edit-amenities';
 import './dashboard.css';
 
+// Pricing Display Component with Sorting
+const PricingDisplay = ({ shiftPricing }) => {
+  const [sortBy, setSortBy] = useState('default');
+  const [sortOrder, setSortOrder] = useState('asc');
+
+  const daysOfWeek = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+  const shiftTypes = ['Day', 'Night', 'Full Day', 'Full Night'];
+
+  const handleSort = (type) => {
+    if (sortBy === type) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(type);
+      setSortOrder('asc');
+    }
+  };
+
+  const getSortedPricing = () => {
+    let sortedData = [...shiftPricing];
+
+    if (sortBy === 'default') {
+      // Sort by day order first, then by shift order
+      sortedData.sort((a, b) => {
+        const dayIndexA = daysOfWeek.indexOf(a.day_of_week.toLowerCase());
+        const dayIndexB = daysOfWeek.indexOf(b.day_of_week.toLowerCase());
+        
+        if (dayIndexA !== dayIndexB) {
+          return dayIndexA - dayIndexB;
+        }
+        
+        const shiftIndexA = shiftTypes.indexOf(a.shift_type);
+        const shiftIndexB = shiftTypes.indexOf(b.shift_type);
+        return shiftIndexA - shiftIndexB;
+      });
+    } else if (sortBy === 'day') {
+      sortedData.sort((a, b) => {
+        const dayIndexA = daysOfWeek.indexOf(a.day_of_week.toLowerCase());
+        const dayIndexB = daysOfWeek.indexOf(b.day_of_week.toLowerCase());
+        
+        if (sortOrder === 'asc') {
+          return dayIndexA - dayIndexB;
+        } else {
+          return dayIndexB - dayIndexA;
+        }
+      });
+    } else if (sortBy === 'shift') {
+      sortedData.sort((a, b) => {
+        const shiftIndexA = shiftTypes.indexOf(a.shift_type);
+        const shiftIndexB = shiftTypes.indexOf(b.shift_type);
+        
+        if (sortOrder === 'asc') {
+          return shiftIndexA - shiftIndexB;
+        } else {
+          return shiftIndexB - shiftIndexA;
+        }
+      });
+    } else if (sortBy === 'price') {
+      sortedData.sort((a, b) => {
+        const priceA = parseFloat(a.price) || 0;
+        const priceB = parseFloat(b.price) || 0;
+        
+        if (sortOrder === 'asc') {
+          return priceA - priceB;
+        } else {
+          return priceB - priceA;
+        }
+      });
+    }
+
+    return sortedData;
+  };
+
+  return (
+    <div className="dashboard-page-shift-pricing">
+      <div className="dashboard-page-pricing-sort-header">
+        <h4>Shift-based Pricing</h4>
+        <div className="dashboard-page-sort-controls">
+          <span className="dashboard-page-sort-label">Sort by:</span>
+          <button
+            className={`dashboard-page-sort-btn ${sortBy === 'default' ? 'active' : ''}`}
+            onClick={() => setSortBy('default')}
+          >
+            Default
+          </button>
+          <button
+            className={`dashboard-page-sort-btn ${sortBy === 'day' ? 'active' : ''}`}
+            onClick={() => handleSort('day')}
+          >
+            Day {sortBy === 'day' && (sortOrder === 'asc' ? '↑' : '↓')}
+          </button>
+          <button
+            className={`dashboard-page-sort-btn ${sortBy === 'shift' ? 'active' : ''}`}
+            onClick={() => handleSort('shift')}
+          >
+            Shift {sortBy === 'shift' && (sortOrder === 'asc' ? '↑' : '↓')}
+          </button>
+          <button
+            className={`dashboard-page-sort-btn ${sortBy === 'price' ? 'active' : ''}`}
+            onClick={() => handleSort('price')}
+          >
+            Price {sortBy === 'price' && (sortOrder === 'asc' ? '↑' : '↓')}
+          </button>
+        </div>
+      </div>
+      
+      <div className="dashboard-page-shift-pricing-header">
+        <div className="dashboard-page-header-item">Day of Week</div>
+        <div className="dashboard-page-header-item">Shift Type</div>
+        <div className="dashboard-page-header-item">Price</div>
+      </div>
+      
+      <div className="dashboard-page-shift-grid">
+        {getSortedPricing().map((shift, index) => (
+          <div key={index} className="dashboard-page-shift-item">
+            <span className="dashboard-page-day">{shift.day_of_week.charAt(0).toUpperCase() + shift.day_of_week.slice(1)}</span>
+            <span className="dashboard-page-shift">{shift.shift_type}</span>
+            <span className="dashboard-page-price">${shift.price}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const Dashboard = () => {
   const [propertyData, setPropertyData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -360,23 +484,7 @@ const Dashboard = () => {
                   </div>
 
                   {pricing.shift_pricing && pricing.shift_pricing.length > 0 && (
-                    <div className="dashboard-page-shift-pricing">
-                      <h4>Shift-based Pricing</h4>
-                      <div className="dashboard-page-shift-pricing-header">
-                        <div className="dashboard-page-header-item">Day of Week</div>
-                        <div className="dashboard-page-header-item">Shift Type</div>
-                        <div className="dashboard-page-header-item">Price</div>
-                      </div>
-                      <div className="dashboard-page-shift-grid">
-                        {pricing.shift_pricing.map((shift, index) => (
-                          <div key={index} className="dashboard-page-shift-item">
-                            <span className="dashboard-page-day">{shift.day_of_week}</span>
-                            <span className="dashboard-page-shift">{shift.shift_type}</span>
-                            <span className="dashboard-page-price">${shift.price}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                    <PricingDisplay shiftPricing={pricing.shift_pricing} />
                   )}
                 </div>
               </div>

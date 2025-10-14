@@ -55,17 +55,24 @@ const EditPricingModal = ({ isOpen, onClose, propertyData, onPricingUpdated }) =
   };
 
   const handleShiftPriceChange = (dayIndex, shiftIndex, value) => {
-    const updatedShiftPricing = [...formData.shift_pricing];
-    const globalIndex = dayIndex * shiftTypes.length + shiftIndex;
+    const day = daysOfWeek[dayIndex];
+    const shift = shiftTypes[shiftIndex];
     
-    if (!updatedShiftPricing[globalIndex]) {
-      updatedShiftPricing[globalIndex] = {
-        day_of_week: daysOfWeek[dayIndex],
-        shift_type: shiftTypes[shiftIndex],
-        price: value
-      };
+    const updatedShiftPricing = [...formData.shift_pricing];
+    const existingIndex = updatedShiftPricing.findIndex(
+      entry => entry.day_of_week === day && entry.shift_type === shift
+    );
+    
+    if (existingIndex !== -1) {
+      // Update existing entry
+      updatedShiftPricing[existingIndex].price = value;
     } else {
-      updatedShiftPricing[globalIndex].price = value;
+      // Add new entry
+      updatedShiftPricing.push({
+        day_of_week: day,
+        shift_type: shift,
+        price: value
+      });
     }
     
     setFormData(prev => ({
@@ -75,8 +82,12 @@ const EditPricingModal = ({ isOpen, onClose, propertyData, onPricingUpdated }) =
   };
 
   const getShiftPrice = (dayIndex, shiftIndex) => {
-    const globalIndex = dayIndex * shiftTypes.length + shiftIndex;
-    return formData.shift_pricing[globalIndex]?.price || '';
+    const day = daysOfWeek[dayIndex];
+    const shift = shiftTypes[shiftIndex];
+    const priceEntry = formData.shift_pricing.find(
+      entry => entry.day_of_week === day && entry.shift_type === shift
+    );
+    return priceEntry?.price || '';
   };
 
   const resetForm = () => {

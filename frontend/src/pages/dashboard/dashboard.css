@@ -790,4 +790,101 @@
   .dashboard-page-shift-item {
     padding: 16px;
   }
-} 
+} /* Pri
+cing Sort Controls */
+.dashboard-page-pricing-sort-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.dashboard-page-pricing-sort-header h4 {
+  margin: 0;
+  color: #1e293b;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.dashboard-page-sort-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dashboard-page-sort-label {
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.dashboard-page-sort-btn {
+  padding: 8px 16px;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #374151;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.dashboard-page-sort-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+  transform: translateY(-1px);
+}
+
+.dashboard-page-sort-btn.active {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.dashboard-page-sort-btn.active:hover {
+  background: #5a67d8;
+  border-color: #5a67d8;
+}
+
+/* Responsive Design for Sorting */
+@media (max-width: 768px) {
+  .dashboard-page-pricing-sort-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .dashboard-page-sort-controls {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+  
+  .dashboard-page-sort-btn {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-page-sort-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  
+  .dashboard-page-sort-btn {
+    justify-content: center;
+    width: 100%;
+  }
+}
