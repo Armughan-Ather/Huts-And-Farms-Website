@@ -221,7 +221,9 @@ if (timestamp && !/Z|[+-]\d\d:?(\d\d)?$/.test(timestamp)) {
 
       const resp = await axios.post(
         `${import.meta.env.VITE_FAST_API_BASE}/api/web-chat/send-image`,
-        { user_id: userId, image_url: imageUrl },
+        { user_id: userId, 
+        image_data: imageUrl, 
+        is_base64: false },
         { headers: { "Content-Type": "application/json" } }
       );
 
