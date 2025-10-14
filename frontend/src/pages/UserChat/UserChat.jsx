@@ -75,44 +75,39 @@ useLayoutEffect(() => {
         { headers: { "Content-Type": "application/json" } }
       );
 
-//       const normalizedMessages = (response.data || []).map(msg => {
-//         // Add this near your normalizedMessages mapping
-// console.log('Message timestamp debug:', {
-//   original: msg.timestamp,
-//   parsed: new Date(msg.timestamp).toISOString(),
-//   localFormatted: formatTime(msg.timestamp),
-//   timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-// });
-//         const imageUrlMatch = msg.content?.match(/https?:\/\/[^\s]+/);
-//         if (imageUrlMatch && imageUrlMatch[0].includes("res.cloudinary.com")) {
-//           return {
-//             ...msg,
-//             media_urls: { images: [imageUrlMatch[0]] },
-//             content: "📷 Image",
-//           };
-//         }
-//         return msg;
-//       });
-const normalizedMessages = (response.data || []).map(msg => {
-  const imageUrlMatch = msg.content?.match(/https?:\/\/[^\s]+/);
+// const normalizedMessages = (response.data || []).map(msg => {
+//   const imageUrlMatch = msg.content?.match(/https?:\/\/[^\s]+/);
   
-  // Keep the original timestamp from the server
-  let timestamp = msg.timestamp;
-if (timestamp && !/Z|[+-]\d\d:?(\d\d)?$/.test(timestamp)) {
-  // If no timezone info, assume UTC
-  timestamp += "Z";
-}
+//   // Keep the original timestamp from the server
+//   let timestamp = msg.timestamp;
+// if (timestamp && !/Z|[+-]\d\d:?(\d\d)?$/.test(timestamp)) {
+//   // If no timezone info, assume UTC
+//   timestamp += "Z";
+// }
 
+
+//   return {
+//     ...msg,
+//     timestamp,
+//     ...(imageUrlMatch && imageUrlMatch[0].includes("res.cloudinary.com") && {
+//       media_urls: { images: [imageUrlMatch[0]] },
+//       content: "📷 Image"
+//     })
+//   };
+// });
+const normalizedMessages = (response.data || []).map(msg => {
+  // Keep original timestamp normalization
+  let timestamp = msg.timestamp;
+  if (timestamp && !/Z|[+-]\d\d:?(\d\d)?$/.test(timestamp)) {
+    timestamp += "Z"; // assume UTC if no timezone info
+  }
 
   return {
     ...msg,
-    timestamp,
-    ...(imageUrlMatch && imageUrlMatch[0].includes("res.cloudinary.com") && {
-      media_urls: { images: [imageUrlMatch[0]] },
-      content: "📷 Image"
-    })
+    timestamp
   };
 });
+
       setMessages(normalizedMessages);
       console.log(response.data);
     
