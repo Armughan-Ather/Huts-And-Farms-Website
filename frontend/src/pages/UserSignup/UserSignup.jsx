@@ -11,6 +11,7 @@ import {
   MDBIcon,
   MDBSpinner
 } from 'mdb-react-ui-kit';
+import VerificationModal from '../../components/VerificationModal/VerificationModal';
 import './UserSignup.css';
 
 const UserSignup = () => {
@@ -29,6 +30,8 @@ const UserSignup = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [userEmail, setUserEmail] = useState('');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -116,7 +119,7 @@ const UserSignup = () => {
         cnic: formData.cnic ? formData.cnic.replace(/-/g, '') : undefined
       };
 
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/users/register`, {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/users/signup/send-code`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -127,12 +130,8 @@ const UserSignup = () => {
       const data = await response.json();
 
       if (response.ok) {
-        setSuccess(true);
-        
-        // Show success message for 2 seconds then redirect to login
-        setTimeout(() => {
-          navigate('/login');
-        }, 2000);
+        setUserEmail(submitData.email);
+        setShowVerificationModal(true);
       } else {
         setError(data.error || data.details || 'Registration failed. Please try again.');
       }
@@ -141,6 +140,44 @@ const UserSignup = () => {
       console.error('Registration error:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleVerificationSuccess = (data) => {
+    // Store token and user data
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
+    
+    setSuccess(true);
+    setShowVerificationModal(false);
+    
+    // Show success message for 2 seconds then redirect to chat
+    setTimeout(() => {
+      navigate('/chat');
+    }, 2000);
+  };
+
+  const handleResendCode = async () => {
+    // Resend the verification code
+    const submitData = {
+      name: formData.name.trim(),
+      email: formData.email.trim().toLowerCase(),
+      phone_number: formData.phone_number.replace(/[\s-]/g, ''),
+      password: formData.password,
+      cnic: formData.cnic ? formData.cnic.replace(/-/g, '') : undefined
+    };
+
+    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/users/signup/send-code`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(submitData),
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Failed to resend code');
     }
   };
 
@@ -386,6 +423,16 @@ const UserSignup = () => {
             </MDBCard>
           </MDBCol>
         </MDBRow>
+
+        {/* Verification Modal */}
+        <VerificationModal
+          isOpen={showVerificationModal}
+          onClose={() => setShowVerificationModal(false)}
+          type="verification"
+          email={userEmail}
+          onSuccess={handleVerificationSuccess}
+          onResendCode={handleResendCode}
+        />
       </MDBContainer>
     </div>
   );

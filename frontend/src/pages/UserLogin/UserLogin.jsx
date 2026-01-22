@@ -11,6 +11,9 @@ import {
   MDBIcon,
   MDBSpinner
 } from 'mdb-react-ui-kit';
+import ForgotPasswordModal from '../../components/ForgotPasswordModal/ForgotPasswordModal';
+import VerificationModal from '../../components/VerificationModal/VerificationModal';
+import ResetPasswordModal from '../../components/ResetPasswordModal/ResetPasswordModal';
 import './UserLogin.css';
 
 const UserLogin = () => {
@@ -22,6 +25,11 @@ const UserLogin = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetCode, setResetCode] = useState('');
 
   const handleChange = (e) => {
     setFormData({
@@ -63,6 +71,44 @@ const UserLogin = () => {
       console.error('Login error:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPasswordCodeSent = (email) => {
+    setResetEmail(email);
+    setShowForgotPasswordModal(false);
+    setShowVerificationModal(true);
+  };
+
+  const handleVerificationSuccess = (data) => {
+    // Store the verified code for reset password
+    setResetCode(data.verifiedCode || '');
+    setShowVerificationModal(false);
+    setShowResetPasswordModal(true);
+  };
+
+  const handleResetPasswordSuccess = (data) => {
+    setShowResetPasswordModal(false);
+    setError('');
+    // Show success message
+    alert('Password reset successfully! Please login with your new password.');
+    // Reset all states
+    setResetEmail('');
+    setResetCode('');
+  };
+
+  const handleResendResetCode = async () => {
+    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/users/forgot-password/send-code`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email: resetEmail }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Failed to resend code');
     }
   };
 
@@ -154,15 +200,19 @@ const UserLogin = () => {
                     </div>
                   </div>
 
-                  {/* <div className="user-login-page-options">
+                  <div className="user-login-page-options">
                     <div className="user-login-page-remember">
                       <input type="checkbox" id="remember" className="user-login-page-checkbox" />
                       <label htmlFor="remember">Remember me</label>
                     </div>
-                    <a href="/forgot-password" className="user-login-page-forgot-link">
+                    <button
+                      type="button"
+                      className="user-login-page-forgot-link"
+                      onClick={() => setShowForgotPasswordModal(true)}
+                    >
                       Forgot Password?
-                    </a>
-                  </div> */}
+                    </button>
+                  </div>
 
                   <MDBBtn
                     type="submit"
@@ -207,6 +257,32 @@ const UserLogin = () => {
             </MDBCard>
           </MDBCol>
         </MDBRow>
+
+        {/* Forgot Password Modal */}
+        <ForgotPasswordModal
+          isOpen={showForgotPasswordModal}
+          onClose={() => setShowForgotPasswordModal(false)}
+          onCodeSent={handleForgotPasswordCodeSent}
+        />
+
+        {/* Verification Modal for Reset Code */}
+        <VerificationModal
+          isOpen={showVerificationModal}
+          onClose={() => setShowVerificationModal(false)}
+          type="reset_password"
+          email={resetEmail}
+          onSuccess={handleVerificationSuccess}
+          onResendCode={handleResendResetCode}
+        />
+
+        {/* Reset Password Modal */}
+        <ResetPasswordModal
+          isOpen={showResetPasswordModal}
+          onClose={() => setShowResetPasswordModal(false)}
+          email={resetEmail}
+          code={resetCode}
+          onSuccess={handleResetPasswordSuccess}
+        />
       </MDBContainer>
     </div>
   );
