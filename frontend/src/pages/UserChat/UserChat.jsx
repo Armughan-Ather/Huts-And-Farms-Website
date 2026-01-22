@@ -66,59 +66,80 @@ useLayoutEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const loadChatHistory = async () => {
-    setIsLoading(true);
-    try {
-      const response = await axios.post(
-        `${import.meta.env.VITE_FAST_API_BASE}/api/web-chat/history`,
-        { user_id: userId, limit: 50 },
-        { headers: { "Content-Type": "application/json" } }
-      );
+  const extractBotText = (content) => {
+  if (!content) return "";
 
-// const normalizedMessages = (response.data || []).map(msg => {
-//   const imageUrlMatch = msg.content?.match(/https?:\/\/[^\s]+/);
-  
-//   // Keep the original timestamp from the server
-//   let timestamp = msg.timestamp;
-// if (timestamp && !/Z|[+-]\d\d:?(\d\d)?$/.test(timestamp)) {
-//   // If no timezone info, assume UTC
-//   timestamp += "Z";
-// }
-
-
-//   return {
-//     ...msg,
-//     timestamp,
-//     ...(imageUrlMatch && imageUrlMatch[0].includes("res.cloudinary.com") && {
-//       media_urls: { images: [imageUrlMatch[0]] },
-//       content: "📷 Image"
-//     })
-//   };
-// });
-const normalizedMessages = (response.data || []).map(msg => {
-  // Keep original timestamp normalization
-  let timestamp = msg.timestamp;
-  if (timestamp && !/Z|[+-]\d\d:?(\d\d)?$/.test(timestamp)) {
-    timestamp += "Z"; // assume UTC if no timezone info
+  // Already clean text
+  if (typeof content === "string" && !content.trim().startsWith("[")) {
+    return content;
   }
 
-  return {
-    ...msg,
-    timestamp
-  };
-});
+  try {
+    // Handle STRING that looks like Python list
+    if (typeof content === "string") {
+      const fixed = content
+        .replace(/'/g, '"')
+        .replace(/\bNone\b/g, "null");
 
-      setMessages(normalizedMessages);
-      console.log(response.data);
-    
-      setError("");
-    } catch (error) {
-      console.error("Failed to load history:", error);
-      setError("Failed to load chat history");
-    } finally {
-      setIsLoading(false);
+      const parsed = JSON.parse(fixed);
+
+      if (Array.isArray(parsed)) {
+        return parsed
+          .filter(item => item.type === "text")
+          .map(item => item.text)
+          .join("<br>");
+      }
     }
-  };
+
+    // Handle already-parsed array
+    if (Array.isArray(content)) {
+      return content
+        .filter(item => item.type === "text")
+        .map(item => item.text)
+        .join("<br>");
+    }
+  } catch (e) {
+    console.error("Bot text parse failed:", e);
+  }
+
+  return content;
+};
+
+
+  const loadChatHistory = async () => {
+  setIsLoading(true);
+  try {
+    const response = await axios.post(
+      `${import.meta.env.VITE_FAST_API_BASE}/api/web-chat/history`,
+      { user_id: userId, limit: 50 },
+      { headers: { "Content-Type": "application/json" } }
+    );
+
+    const normalizedMessages = (response.data || []).map(msg => {
+      let timestamp = msg.timestamp;
+      if (timestamp && !/Z|[+-]\d\d:?(\d\d)?$/.test(timestamp)) {
+        timestamp += "Z";
+      }
+
+      return {
+        ...msg,
+        content:
+          msg.sender === "bot"
+            ? extractBotText(msg.content)
+            : msg.content,
+        timestamp
+      };
+    });
+
+    setMessages(normalizedMessages);
+    setError("");
+  } catch (error) {
+    console.error("Failed to load history:", error);
+    setError("Failed to load chat history");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const sendMessage = async () => {
     if (!inputMessage.trim() || isSending) return;
@@ -142,16 +163,17 @@ const normalizedMessages = (response.data || []).map(msg => {
       );
 
       if (response.data.status === "success") {
-        const botMsg = {
-          sender: "bot",
-          content: response.data.bot_response,
-          media_urls: response.data.media_urls,
-          timestamp: new Date().toISOString(),
-        };
-        setMessages((prev) => [...prev, botMsg]);
-      } else {
-        setError(response.data.error || "Failed to send message");
-      }
+  const botMsg = {
+    sender: "bot",
+    content: extractBotText(response.data.bot_response),
+    media_urls: response.data.media_urls || {},
+    timestamp: new Date().toISOString(),
+  };
+
+  setMessages((prev) => [...prev, botMsg]);
+} else {
+  setError(response.data.error || "Failed to send message");
+}
     } catch (error) {
       console.error("Send message failed:", error);
       setError("Failed to send message. Please try again.");
@@ -162,13 +184,69 @@ const normalizedMessages = (response.data || []).map(msg => {
   };
 
   const formatBotMessage = (text) => {
-    if (!text) return "";
-    let formatted = text.replace(/\*(.*?)\*/g, "<strong>$1</strong>");
-    formatted = formatted.replace(/‣/g, "•");
-    formatted = formatted.replace(/^- /gm, "• ");
-    formatted = formatted.replace(/\n/g, "<br>");
-    return formatted;
-  };
+  if (!text) return "";
+  console.log("Bot message:", text);
+
+  let formatted = text;
+
+  /* ---------------------------------
+     1️⃣ Bold text: *text* → <strong>
+  ---------------------------------- */
+  formatted = formatted.replace(/\*(.*?)\*/g, "<strong>$1</strong>");
+
+  /* ---------------------------------
+     2️⃣ Handle shift type definitions FIRST
+     Prevents them from being broken by other rules
+     Pattern: "- Day -> 8 am to 6 pm"
+  ---------------------------------- */
+  formatted = formatted.replace(
+    /\s*-\s*(Day|Night|Full Day|Full Night)\s*->\s*([^\n-]+)/g,
+    "<br>&nbsp;&nbsp;&nbsp;&nbsp;• <strong>$1:</strong> $2"
+  );
+
+  /* ---------------------------------
+     3️⃣ Handle ‣ bullets (main bullets)
+     Each bullet on new line with proper spacing
+  ---------------------------------- */
+  formatted = formatted.replace(/\s*‣\s*/g, "<br>‣ ");
+
+  /* ---------------------------------
+     4️⃣ Handle numbered lists (farmhouse results)
+     Single <br> for tighter spacing between items
+  ---------------------------------- */
+  formatted = formatted.replace(/(\d+\.)\s*/g, "<br><strong>$1</strong> ");
+
+  /* ---------------------------------
+     5️⃣ Handle "Price (Rs) - 45000" pattern
+     Clean format with line break after
+  ---------------------------------- */
+  formatted = formatted.replace(
+    /Price\s*\(Rs\)\s*-\s*(\d+)/g,
+    "<br>&nbsp;&nbsp;&nbsp;&nbsp;Rs <strong>$1</strong><br><br>"
+  );
+
+  /* ---------------------------------
+     6️⃣ Catch any remaining pattern like "Rs 45000 Agr"
+     Ensures Urdu text always starts on new line
+  ---------------------------------- */
+  formatted = formatted.replace(
+    /(Rs\s*\d+)\s+([A-Za-zآ-ی])/g,
+    "$1<br><br>$2"
+  );
+
+  /* ---------------------------------
+     7️⃣ Clean up multiple line breaks
+     Max 2 consecutive <br> tags
+  ---------------------------------- */
+  formatted = formatted.replace(/(<br\s*\/?>){3,}/g, "<br><br>");
+  
+  /* ---------------------------------
+     8️⃣ Remove leading line breaks
+  ---------------------------------- */
+  formatted = formatted.replace(/^(<br\s*\/?>)+/, "");
+
+  return formatted;
+};
 
   const handleImageUpload = async (file) => {
     if (!file) return;

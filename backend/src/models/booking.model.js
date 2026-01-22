@@ -69,7 +69,7 @@ export default (sequelize) => {
       allowNull: false,
     },
     shift_type: {
-      type: 'shift_type_enum', // Reference existing ENUM type
+      type: 'shift_type_enum',
       allowNull: false,
     },
     total_cost: {
@@ -77,11 +77,12 @@ export default (sequelize) => {
       allowNull: false,
     },
     booking_source: {
-      type: 'booking_source_enum', // Reference existing ENUM type
+      type: 'booking_source_enum',
       allowNull: false,
     },
     status: {
-      type: 'booking_status_enum', // Reference existing ENUM type
+      type: 'booking_status_enum',
+      defaultValue: 'pending',
     },
     booked_at: {
       type: DataTypes.DATE,

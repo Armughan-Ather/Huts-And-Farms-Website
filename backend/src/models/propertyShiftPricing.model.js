@@ -21,7 +21,7 @@ export default (sequelize) => {
       allowNull: false,
     },
     shift_type: {
-      type: 'shift_type_enum', // Matches ['Day', 'Night', 'Full Day']
+      type: 'shift_type_enum',
       allowNull: false,
     },
     price: {

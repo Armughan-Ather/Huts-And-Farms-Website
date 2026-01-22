@@ -35,15 +35,23 @@ const PORT = process.env.PORT || 3000;
 
 async function startServer() {
   try {
+    // Test database connection
     await db.sequelize.authenticate();
     console.log('✅ DB connected successfully.');
 
-    // Sync all models except Message and Session
+    // Sync models with existing database structure (no alter)
     const modelsToSync = Object.values(db).filter(model => 
-      model !== db.Message && model !== db.Session &&model !== db.videoSent && model !== db.imageSent && model.getTableName
+      model !== db.Message && 
+      model !== db.Session && 
+      model !== db.videoSent && 
+      model !== db.imageSent && 
+      model.getTableName &&
+      typeof model.sync === 'function'
     );
-    await Promise.all(modelsToSync.map(model => model.sync({ alter: true })));
-    console.log('✅ Models synced with database (excluding Message and Session).');
+    
+    // Use force: false and alter: false to work with existing database
+    await Promise.all(modelsToSync.map(model => model.sync({ force: false, alter: false })));
+    console.log('✅ Models synced with existing PostgreSQL database.');
 
     app.listen(PORT, () => {
       console.log(`🚀 Server is running at http://localhost:${PORT}`);

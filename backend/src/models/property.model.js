@@ -107,7 +107,7 @@ export default (sequelize) => {
       allowNull: false,
     },
     type: {
-      type: 'enum_properties_type', // Matches database ENUM name
+      type: 'enum_properties_type',
       allowNull: false,
     },
     advance_percentage: {

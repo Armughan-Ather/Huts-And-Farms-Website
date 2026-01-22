@@ -4,7 +4,9 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "dev": "nodemon -r dotenv/config --experimental-json-modules src/index.js"
+    "dev": "nodemon -r dotenv/config --experimental-json-modules src/index.js",
+    "db:init": "node -r dotenv/config src/db/initDatabase.js",
+    "db:setup": "node -r dotenv/config src/db/setupEnums.js"
   },
   "keywords": [],
   "author": "",
