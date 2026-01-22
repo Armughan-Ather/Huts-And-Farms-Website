@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "nodemon -r dotenv/config --experimental-json-modules src/index.js",
     "db:init": "node -r dotenv/config src/db/initDatabase.js",
-    "db:setup": "node -r dotenv/config src/db/setupEnums.js"
+    "db:setup": "node -r dotenv/config src/db/setupEnums.js",
+    "db:add-email-verification": "node -r dotenv/config src/db/addEmailVerificationColumns.js"
   },
   "keywords": [],
   "author": "",
@@ -22,6 +23,7 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.2",
     "multer-storage-cloudinary": "^4.0.0",
+    "nodemailer": "^7.0.12",
     "pg": "^8.16.3",
     "pg-hstore": "^2.3.4",
     "pgvector": "^0.2.1",

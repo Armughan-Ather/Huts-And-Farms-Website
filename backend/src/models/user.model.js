@@ -25,6 +25,26 @@ export default (sequelize) => {
       type: DataTypes.STRING(13),
       allowNull: true,
     },
+    is_email_verified: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+    verification_code: {
+      type: DataTypes.STRING(6),
+      allowNull: true,
+    },
+    verification_code_expires: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    reset_password_code: {
+      type: DataTypes.STRING(6),
+      allowNull: true,
+    },
+    reset_password_expires: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
     created_at: {
       type: DataTypes.DATE,
     },
