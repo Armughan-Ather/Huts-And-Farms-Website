@@ -87,6 +87,10 @@ export default (sequelize) => {
     booked_at: {
       type: DataTypes.DATE,
     },
+    payment_screenshot_url: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
     created_at: {
       type: DataTypes.DATE,
     },

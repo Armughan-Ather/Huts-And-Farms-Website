@@ -392,6 +392,7 @@ export const viewPropertyBookings = async (req, res) => {
         'total_cost',
         'booking_source',
         'status',
+        'payment_screenshot_url',
         'booked_at',
         'created_at',
         'updated_at',
@@ -414,6 +415,7 @@ export const viewPropertyBookings = async (req, res) => {
         total_cost: booking.total_cost,
         booking_source: booking.booking_source,
         status: booking.status,
+        payment_screenshot_url: booking.payment_screenshot_url,
         booked_at: booking.booked_at,
         created_at: booking.created_at,
         updated_at: booking.updated_at,
@@ -686,5 +688,82 @@ export const completeBooking = async (req, res) => {
     await transaction.rollback();
     console.error('Error completing bookings:', error);
     res.status(500).json({ error: 'Failed to complete bookings', details: error.message });
+  }
+};
+
+// Update booking status
+export const updateBookingStatus = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const { booking_id, status } = req.body;
+    const { property_id } = req.property;
+
+    // Validate required fields
+    if (!booking_id || !status) {
+      await transaction.rollback();
+      return res.status(400).json({ error: 'Missing required fields: booking_id, status' });
+    }
+
+    // Validate status
+    const validStatuses = ['Pending', 'Confirmed', 'Cancelled', 'Completed'];
+    if (!validStatuses.includes(status)) {
+      await transaction.rollback();
+      return res.status(400).json({ 
+        error: 'Invalid status. Must be one of: Pending, Confirmed, Cancelled, Completed' 
+      });
+    }
+
+    // Find booking
+    const booking = await Booking.findOne({
+      where: { booking_id, property_id },
+      include: [
+        {
+          model: User,
+          attributes: ['name', 'phone_number', 'cnic', 'email'],
+          required: false,
+        },
+      ],
+      transaction,
+    });
+
+    if (!booking) {
+      await transaction.rollback();
+      return res.status(404).json({ error: 'Booking not found or not associated with this property' });
+    }
+
+    // Update status
+    await booking.update(
+      { status, updated_at: new Date() },
+      { transaction }
+    );
+
+    await transaction.commit();
+
+    // Return updated booking with user details
+    res.status(200).json({
+      message: `Booking status updated to ${status} successfully`,
+      booking: {
+        booking_id: booking.booking_id,
+        user_id: booking.user_id,
+        user_name: booking.User?.name || null,
+        user_phone_number: booking.User?.phone_number || null,
+        user_cnic: booking.User?.cnic || null,
+        user_email: booking.User?.email || null,
+        property_id: booking.property_id,
+        booking_date: booking.booking_date,
+        shift_type: booking.shift_type,
+        total_cost: booking.total_cost,
+        booking_source: booking.booking_source,
+        status: booking.status,
+        payment_screenshot_url: booking.payment_screenshot_url,
+        booked_at: booking.booked_at,
+        created_at: booking.created_at,
+        updated_at: booking.updated_at,
+      },
+    });
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Error updating booking status:', error);
+    res.status(500).json({ error: 'Failed to update booking status', details: error.message });
   }
 };

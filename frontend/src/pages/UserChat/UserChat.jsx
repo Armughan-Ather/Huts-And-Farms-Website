@@ -69,6 +69,96 @@ useLayoutEffect(() => {
   const extractBotText = (content) => {
   if (!content) return "";
 
+  // Handle array format with objects containing type and text properties
+  if (Array.isArray(content)) {
+    return content
+      .filter(item => item && item.type === "text" && item.text)
+      .map(item => item.text)
+      .filter(text => !text.toLowerCase().includes("attachment")) // Filter out attachment references
+      .join("<br>");
+  }
+
+  // Handle Python-style string that looks like: [{'type': 'text', 'text': '...', 'extras': {...}}]
+  if (typeof content === "string" && content.trim().startsWith("[{") && content.includes("'type':") && content.includes("'text':")) {
+    try {
+      // Convert Python-style string to proper JSON
+      let pythonStr = content.trim();
+      
+      // Replace single quotes with double quotes, but be careful with quotes inside strings
+      // First, temporarily replace escaped single quotes
+      pythonStr = pythonStr.replace(/\\'/g, "___ESCAPED_QUOTE___");
+      
+      // Replace single quotes with double quotes
+      pythonStr = pythonStr.replace(/'/g, '"');
+      
+      // Restore escaped quotes as proper JSON escaped quotes
+      pythonStr = pythonStr.replace(/___ESCAPED_QUOTE___/g, '\\"');
+      
+      // Handle None values
+      pythonStr = pythonStr.replace(/\bNone\b/g, "null");
+      
+      // Handle True/False values
+      pythonStr = pythonStr.replace(/\bTrue\b/g, "true");
+      pythonStr = pythonStr.replace(/\bFalse\b/g, "false");
+
+      const parsed = JSON.parse(pythonStr);
+      
+      if (Array.isArray(parsed)) {
+        return parsed
+          .filter(item => item && item.type === "text" && item.text)
+          .map(item => item.text)
+          .filter(text => !text.toLowerCase().includes("attachment")) // Filter out attachment references
+          .join("<br>");
+      }
+    } catch (e) {
+      console.error("Failed to parse Python-style array:", e);
+      console.log("Original content:", content);
+      // If parsing fails, try to extract text manually using regex
+      try {
+        const textMatch = content.match(/'text':\s*"([^"]+)"/);
+        if (textMatch && textMatch[1]) {
+          const extractedText = textMatch[1];
+          // Filter out attachment references
+          if (extractedText.toLowerCase().includes("attachment")) {
+            return "";
+          }
+          return extractedText;
+        }
+        // Try with single quotes
+        const textMatch2 = content.match(/'text':\s*'([^']+)'/);
+        if (textMatch2 && textMatch2[1]) {
+          const extractedText = textMatch2[1];
+          // Filter out attachment references
+          if (extractedText.toLowerCase().includes("attachment")) {
+            return "";
+          }
+          return extractedText;
+        }
+      } catch (regexError) {
+        console.error("Regex extraction failed:", regexError);
+      }
+      return content;
+    }
+  }
+
+  // Handle JSON string that represents an array
+  if (typeof content === "string" && content.trim().startsWith("[") && content.trim().endsWith("]")) {
+    try {
+      const parsed = JSON.parse(content.trim());
+      if (Array.isArray(parsed)) {
+        return parsed
+          .filter(item => item && item.type === "text" && item.text)
+          .map(item => item.text)
+          .filter(text => !text.toLowerCase().includes("attachment")) // Filter out attachment references
+          .join("<br>");
+      }
+    } catch (e) {
+      console.error("Failed to parse array JSON:", e);
+      // If JSON parsing fails, return the original content
+      return content;
+    }
+  }
+
   // Handle JSON objects - check if string starts with { and ends with }
   if (typeof content === "string" && content.trim().startsWith("{") && content.trim().endsWith("}")) {
     try {
@@ -98,13 +188,18 @@ useLayoutEffect(() => {
     return content.message;
   }
 
+  // Filter out attachment references from plain text
+  if (typeof content === "string" && content.toLowerCase().includes("attachment")) {
+    return "";
+  }
+
   // Already clean text
   if (typeof content === "string" && !content.trim().startsWith("[")) {
     return content;
   }
 
   try {
-    // Handle STRING that looks like Python list
+    // Handle STRING that looks like Python list (legacy support)
     if (typeof content === "string") {
       const fixed = content
         .replace(/'/g, '"')
@@ -116,16 +211,9 @@ useLayoutEffect(() => {
         return parsed
           .filter(item => item.type === "text")
           .map(item => item.text)
+          .filter(text => !text.toLowerCase().includes("attachment")) // Filter out attachment references
           .join("<br>");
       }
-    }
-
-    // Handle already-parsed array
-    if (Array.isArray(content)) {
-      return content
-        .filter(item => item.type === "text")
-        .map(item => item.text)
-        .join("<br>");
     }
   } catch (e) {
     console.error("Bot text parse failed:", e);
@@ -150,12 +238,73 @@ useLayoutEffect(() => {
         timestamp += "Z";
       }
 
+      // Clean media URLs for bot messages
+      let cleanMediaUrls = msg.media_urls || {};
+      if (msg.sender === "bot" && msg.media_urls) {
+        cleanMediaUrls = {};
+        
+        // Clean images array
+        if (msg.media_urls.images && Array.isArray(msg.media_urls.images)) {
+          cleanMediaUrls.images = msg.media_urls.images
+            .map(url => {
+              if (typeof url === 'string') {
+                // Remove any trailing text that might be appended to URLs
+                let cleanUrl = url.trim();
+                
+                // Remove common text contamination patterns
+                cleanUrl = cleanUrl.replace(/\/n\/n.*$/, ''); // Remove /n/nAnd type suffixes
+                cleanUrl = cleanUrl.replace(/\s+.*$/, ''); // Remove any text after whitespace
+                cleanUrl = cleanUrl.replace(/[^a-zA-Z0-9:\/\.\-_\?&=].*$/, ''); // Remove non-URL characters and everything after
+                
+                // Validate that it's a proper URL
+                try {
+                  new URL(cleanUrl);
+                  return cleanUrl;
+                } catch (e) {
+                  console.error('Invalid image URL in history:', url, 'cleaned to:', cleanUrl);
+                  return null;
+                }
+              }
+              return null;
+            })
+            .filter(url => url !== null); // Remove invalid URLs
+        }
+        
+        // Clean videos array
+        if (msg.media_urls.videos && Array.isArray(msg.media_urls.videos)) {
+          cleanMediaUrls.videos = msg.media_urls.videos
+            .map(url => {
+              if (typeof url === 'string') {
+                // Remove any trailing text that might be appended to URLs
+                let cleanUrl = url.trim();
+                
+                // Remove common text contamination patterns
+                cleanUrl = cleanUrl.replace(/\/n\/n.*$/, ''); // Remove /n/nAnd type suffixes
+                cleanUrl = cleanUrl.replace(/\s+.*$/, ''); // Remove any text after whitespace
+                cleanUrl = cleanUrl.replace(/[^a-zA-Z0-9:\/\.\-_\?&=].*$/, ''); // Remove non-URL characters and everything after
+                
+                // Validate that it's a proper URL
+                try {
+                  new URL(cleanUrl);
+                  return cleanUrl;
+                } catch (e) {
+                  console.error('Invalid video URL in history:', url, 'cleaned to:', cleanUrl);
+                  return null;
+                }
+              }
+              return null;
+            })
+            .filter(url => url !== null); // Remove invalid URLs
+        }
+      }
+
       return {
         ...msg,
         content:
           msg.sender === "bot"
             ? extractBotText(msg.content)
             : msg.content,
+        media_urls: cleanMediaUrls,
         timestamp
       };
     });
@@ -192,10 +341,69 @@ useLayoutEffect(() => {
       );
 
       if (response.data.status === "success") {
+  // Clean and validate media URLs
+  const cleanMediaUrls = {};
+  
+  if (response.data.media_urls) {
+    // Clean images array
+    if (response.data.media_urls.images && Array.isArray(response.data.media_urls.images)) {
+      cleanMediaUrls.images = response.data.media_urls.images
+        .map(url => {
+          if (typeof url === 'string') {
+            // Remove any trailing text that might be appended to URLs
+            let cleanUrl = url.trim();
+            
+            // Remove common text contamination patterns
+            cleanUrl = cleanUrl.replace(/\/n\/n.*$/, ''); // Remove /n/nAnd type suffixes
+            cleanUrl = cleanUrl.replace(/\s+.*$/, ''); // Remove any text after whitespace
+            cleanUrl = cleanUrl.replace(/[^a-zA-Z0-9:\/\.\-_\?&=].*$/, ''); // Remove non-URL characters and everything after
+            
+            // Validate that it's a proper URL
+            try {
+              new URL(cleanUrl);
+              return cleanUrl;
+            } catch (e) {
+              console.error('Invalid image URL:', url, 'cleaned to:', cleanUrl);
+              return null;
+            }
+          }
+          return null;
+        })
+        .filter(url => url !== null); // Remove invalid URLs
+    }
+    
+    // Clean videos array
+    if (response.data.media_urls.videos && Array.isArray(response.data.media_urls.videos)) {
+      cleanMediaUrls.videos = response.data.media_urls.videos
+        .map(url => {
+          if (typeof url === 'string') {
+            // Remove any trailing text that might be appended to URLs
+            let cleanUrl = url.trim();
+            
+            // Remove common text contamination patterns
+            cleanUrl = cleanUrl.replace(/\/n\/n.*$/, ''); // Remove /n/nAnd type suffixes
+            cleanUrl = cleanUrl.replace(/\s+.*$/, ''); // Remove any text after whitespace
+            cleanUrl = cleanUrl.replace(/[^a-zA-Z0-9:\/\.\-_\?&=].*$/, ''); // Remove non-URL characters and everything after
+            
+            // Validate that it's a proper URL
+            try {
+              new URL(cleanUrl);
+              return cleanUrl;
+            } catch (e) {
+              console.error('Invalid video URL:', url, 'cleaned to:', cleanUrl);
+              return null;
+            }
+          }
+          return null;
+        })
+        .filter(url => url !== null); // Remove invalid URLs
+    }
+  }
+
   const botMsg = {
     sender: "bot",
     content: extractBotText(response.data.bot_response),
-    media_urls: response.data.media_urls || {},
+    media_urls: cleanMediaUrls,
     timestamp: new Date().toISOString(),
   };
 

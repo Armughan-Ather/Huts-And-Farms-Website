@@ -7,10 +7,6 @@ const Bookings = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('all');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [addBookingLoading, setAddBookingLoading] = useState(false);
-  const [addBookingError, setAddBookingError] = useState('');
-  const [addBookingSuccess, setAddBookingSuccess] = useState('');
   const [actionLoading, setActionLoading] = useState({});
   const [actionError, setActionError] = useState('');
   const [actionSuccess, setActionSuccess] = useState('');
@@ -22,15 +18,11 @@ const Bookings = () => {
   const [sortOrder, setSortOrder] = useState('closest');
   // Row selection for details
   const [selectedBooking, setSelectedBooking] = useState(null);
+  const [showRejectionModal, setShowRejectionModal] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [adminNotes, setAdminNotes] = useState('');
 
-  // Form state
-  const [formData, setFormData] = useState({
-    cnic: '',
-    phone_no: '',
-    booking_date: '',
-    shift_type: '',
-    booking_source: ''
-  });
+  // Form state - keeping for potential future use
 
   useEffect(() => {
     fetchBookings();
@@ -103,77 +95,7 @@ const Bookings = () => {
     window.location.href = '/add-booking';
   };
 
-  const handleCloseModal = () => {
-    setShowAddModal(false);
-    setAddBookingError('');
-    setAddBookingSuccess('');
-    setFormData({
-      cnic: '',
-      phone_no: '',
-      booking_date: '',
-      shift_type: '',
-      booking_source: ''
-    });
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setAddBookingLoading(true);
-    setAddBookingError('');
-    setAddBookingSuccess('');
-
-    try {
-      const token = localStorage.getItem('propertyToken');
-      if (!token) {
-        setAddBookingError('No authentication token found. Please login again.');
-        setAddBookingLoading(false);
-        return;
-      }
-
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
-      const response = await axios.post(`${backendUrl}/api/bookings/create`, formData, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      setAddBookingSuccess('Booking created successfully!');
-      setAddBookingLoading(false);
-      
-      // Refresh bookings list
-      setTimeout(() => {
-        fetchBookings();
-        handleCloseModal();
-      }, 1500);
-
-    } catch (err) {
-      console.log('Error creating booking:', err);
-      setAddBookingLoading(false);
-      
-      if (err.response?.data?.error) {
-        setAddBookingError(err.response.data.error);
-      } else if (err.response?.data?.details) {
-        setAddBookingError(err.response.data.details);
-      } else if (err.response) {
-        setAddBookingError('Failed to create booking. Please try again.');
-      } else if (err.request) {
-        setAddBookingError('Network error. Please check your connection and try again.');
-      } else {
-        setAddBookingError('An unexpected error occurred. Please try again.');
-      }
-    }
-  };
-
-  const handleCancelBooking = async (bookingId) => {
+  const handleStatusChange = async (bookingId, newStatus) => {
     setActionLoading(prev => ({ ...prev, [bookingId]: true }));
     setActionError('');
     setActionSuccess('');
@@ -186,9 +108,10 @@ const Bookings = () => {
         return;
       }
 
+      // First update status in our backend
       const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
-      await axios.post(`${backendUrl}/api/bookings/cancel`, 
-        { booking_id: bookingId },
+      await axios.post(`${backendUrl}/api/bookings/update-status`, 
+        { booking_id: bookingId, status: newStatus },
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -197,17 +120,29 @@ const Bookings = () => {
         }
       );
 
-      setActionSuccess('Booking cancelled successfully!');
+      // Then notify user via bot API if status is Confirmed or Cancelled
+      if (newStatus === 'Confirmed') {
+        await notifyUserBookingConfirmed(bookingId);
+      } else if (newStatus === 'Cancelled') {
+        await notifyUserBookingRejected(bookingId, 'Booking has been cancelled by admin');
+      }
+
+      setActionSuccess(`Booking status updated to ${newStatus} successfully! ${newStatus === 'Confirmed' || newStatus === 'Cancelled' ? 'User has been notified.' : ''}`);
       setActionLoading(prev => ({ ...prev, [bookingId]: false }));
+      
+      // Update the selected booking if it's the same one
+      if (selectedBooking && selectedBooking.booking_id === bookingId) {
+        setSelectedBooking(prev => ({ ...prev, status: newStatus }));
+      }
       
       // Refresh bookings list
       setTimeout(() => {
         fetchBookings();
         setActionSuccess('');
-      }, 1500);
+      }, 2000);
 
     } catch (err) {
-      console.log('Error cancelling booking:', err);
+      console.log('Error updating booking status:', err);
       setActionLoading(prev => ({ ...prev, [bookingId]: false }));
       
       if (err.response?.data?.error) {
@@ -215,7 +150,7 @@ const Bookings = () => {
       } else if (err.response?.data?.details) {
         setActionError(err.response.data.details);
       } else if (err.response) {
-        setActionError('Failed to cancel booking. Please try again.');
+        setActionError('Failed to update booking status. Please try again.');
       } else if (err.request) {
         setActionError('Network error. Please check your connection and try again.');
       } else {
@@ -224,7 +159,70 @@ const Bookings = () => {
     }
   };
 
-  const handleConfirmBooking = async (bookingId) => {
+  // Notify user via bot API when booking is confirmed
+  const notifyUserBookingConfirmed = async (bookingId, adminNotes = '') => {
+    try {
+      const fastApiBase = import.meta.env.VITE_FAST_API_BASE || 'http://localhost:8000';
+      const response = await axios.post(`${fastApiBase}/api/admin/bookings/confirm`, {
+        booking_id: bookingId,
+        admin_notes: adminNotes
+      }, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('User notification sent:', response.data);
+    } catch (error) {
+      console.error('Failed to notify user about booking confirmation:', error);
+      // Don't throw error as the main booking update was successful
+    }
+  };
+
+  // Notify user via bot API when booking is rejected/cancelled
+  const notifyUserBookingRejected = async (bookingId, rejectionReason, adminNotes = '') => {
+    try {
+      const fastApiBase = import.meta.env.VITE_FAST_API_BASE || 'http://localhost:8000';
+      const response = await axios.post(`${fastApiBase}/api/admin/bookings/reject`, {
+        booking_id: bookingId,
+        rejection_reason: rejectionReason,
+        admin_notes: adminNotes
+      }, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('User rejection notification sent:', response.data);
+    } catch (error) {
+      console.error('Failed to notify user about booking rejection:', error);
+      // Don't throw error as the main booking update was successful
+    }
+  };
+
+  const handleRejectWithReason = (bookingId) => {
+    setSelectedBooking(bookings.find(b => b.booking_id === bookingId));
+    setShowRejectionModal(true);
+  };
+
+  const submitRejection = async () => {
+    if (!rejectionReason.trim()) {
+      setActionError('Please enter a rejection reason');
+      return;
+    }
+
+    const bookingId = selectedBooking.booking_id;
+    setShowRejectionModal(false);
+    
+    // Use the existing handleStatusChange but with custom rejection reason
+    await handleStatusChangeWithReason(bookingId, 'Cancelled', rejectionReason, adminNotes);
+    
+    // Reset form
+    setRejectionReason('');
+    setAdminNotes('');
+  };
+
+  const handleStatusChangeWithReason = async (bookingId, newStatus, customReason = '', customNotes = '') => {
     setActionLoading(prev => ({ ...prev, [bookingId]: true }));
     setActionError('');
     setActionSuccess('');
@@ -237,9 +235,10 @@ const Bookings = () => {
         return;
       }
 
+      // First update status in our backend
       const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
-      await axios.post(`${backendUrl}/api/bookings/confirm`, 
-        { booking_id: bookingId },
+      await axios.post(`${backendUrl}/api/bookings/update-status`, 
+        { booking_id: bookingId, status: newStatus },
         {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -248,17 +247,29 @@ const Bookings = () => {
         }
       );
 
-      setActionSuccess('Booking confirmed successfully!');
+      // Then notify user via bot API with custom reason
+      if (newStatus === 'Confirmed') {
+        await notifyUserBookingConfirmed(bookingId, customNotes || 'Your booking has been confirmed! Payment verified successfully.');
+      } else if (newStatus === 'Cancelled') {
+        await notifyUserBookingRejected(bookingId, customReason || 'Booking has been cancelled by admin', customNotes);
+      }
+
+      setActionSuccess(`Booking ${newStatus.toLowerCase()} successfully! User has been notified.`);
       setActionLoading(prev => ({ ...prev, [bookingId]: false }));
+      
+      // Update the selected booking if it's the same one
+      if (selectedBooking && selectedBooking.booking_id === bookingId) {
+        setSelectedBooking(prev => ({ ...prev, status: newStatus }));
+      }
       
       // Refresh bookings list
       setTimeout(() => {
         fetchBookings();
         setActionSuccess('');
-      }, 1500);
+      }, 2000);
 
     } catch (err) {
-      console.log('Error confirming booking:', err);
+      console.log('Error updating booking status:', err);
       setActionLoading(prev => ({ ...prev, [bookingId]: false }));
       
       if (err.response?.data?.error) {
@@ -266,7 +277,7 @@ const Bookings = () => {
       } else if (err.response?.data?.details) {
         setActionError(err.response.data.details);
       } else if (err.response) {
-        setActionError('Failed to confirm booking. Please try again.');
+        setActionError('Failed to update booking status. Please try again.');
       } else if (err.request) {
         setActionError('Network error. Please check your connection and try again.');
       } else {
@@ -545,7 +556,6 @@ const Bookings = () => {
                   <th className="booking-page-table-th">Total Cost</th>
                   <th className="booking-page-table-th">Source</th>
                   <th className="booking-page-table-th">Booked At</th>
-                  <th className="booking-page-table-th">Actions</th>
                 </tr>
               </thead>
               <tbody className="booking-page-table-body">
@@ -584,57 +594,6 @@ const Bookings = () => {
                     </td>
                     <td className="booking-page-table-td">
                       {formatDateTime(booking.booked_at)}
-                    </td>
-                    <td className="booking-page-table-td">
-                      <div className="booking-page-action-buttons">
-                        {booking.status?.toLowerCase() === 'pending' && (
-                          <>
-                            <button
-                              onClick={() => handleConfirmBooking(booking.booking_id)}
-                              disabled={actionLoading[booking.booking_id]}
-                              className="booking-page-confirm-button"
-                              title="Confirm Booking"
-                            >
-                              {actionLoading[booking.booking_id] ? (
-                                <span className="booking-page-loading-dots"></span>
-                              ) : (
-                                '✅'
-                              )}
-                            </button>
-                            <button
-                              onClick={() => handleCancelBooking(booking.booking_id)}
-                              disabled={actionLoading[booking.booking_id]}
-                              className="booking-page-cancel-button"
-                              title="Cancel Booking"
-                            >
-                              {actionLoading[booking.booking_id] ? (
-                                <span className="booking-page-loading-dots"></span>
-                              ) : (
-                                '❌'
-                              )}
-                            </button>
-                          </>
-                        )}
-                        {booking.status?.toLowerCase() === 'confirmed' && (
-                          <button
-                            onClick={() => handleCancelBooking(booking.booking_id)}
-                            disabled={actionLoading[booking.booking_id]}
-                            className="booking-page-cancel-button"
-                            title="Cancel Booking"
-                          >
-                            {actionLoading[booking.booking_id] ? (
-                              <span className="booking-page-loading-dots"></span>
-                            ) : (
-                              '❌'
-                            )}
-                          </button>
-                        )}
-                        {(booking.status?.toLowerCase() === 'completed' || booking.status?.toLowerCase() === 'cancelled') && (
-                          <span className="booking-page-status-text">
-                            {booking.status?.toLowerCase() === 'completed' ? '✅ Completed' : '❌ Cancelled'}
-                          </span>
-                        )}
-                      </div>
                     </td>
                   </tr>
                 ))}
@@ -683,55 +642,6 @@ const Bookings = () => {
                     ${booking.total_cost?.toLocaleString() || '0'}
                   </div>
                 </div>
-                <div className="booking-page-mobile-actions" onClick={(e) => e.stopPropagation()}>
-                  {booking.status?.toLowerCase() === 'pending' && (
-                    <>
-                      <button
-                        onClick={() => handleConfirmBooking(booking.booking_id)}
-                        disabled={actionLoading[booking.booking_id]}
-                        className="booking-page-confirm-button"
-                        title="Confirm Booking"
-                      >
-                        {actionLoading[booking.booking_id] ? (
-                          <span className="booking-page-loading-dots"></span>
-                        ) : (
-                          '✅'
-                        )}
-                      </button>
-                      <button
-                        onClick={() => handleCancelBooking(booking.booking_id)}
-                        disabled={actionLoading[booking.booking_id]}
-                        className="booking-page-cancel-button"
-                        title="Cancel Booking"
-                      >
-                        {actionLoading[booking.booking_id] ? (
-                          <span className="booking-page-loading-dots"></span>
-                        ) : (
-                          '❌'
-                        )}
-                      </button>
-                    </>
-                  )}
-                  {booking.status?.toLowerCase() === 'confirmed' && (
-                    <button
-                      onClick={() => handleCancelBooking(booking.booking_id)}
-                      disabled={actionLoading[booking.booking_id]}
-                      className="booking-page-cancel-button"
-                      title="Cancel Booking"
-                    >
-                      {actionLoading[booking.booking_id] ? (
-                        <span className="booking-page-loading-dots"></span>
-                      ) : (
-                        '❌'
-                      )}
-                    </button>
-                  )}
-                  {(booking.status?.toLowerCase() === 'completed' || booking.status?.toLowerCase() === 'cancelled') && (
-                    <span className="booking-page-status-text">
-                      {booking.status?.toLowerCase() === 'completed' ? '✅ Completed' : '❌ Cancelled'}
-                    </span>
-                  )}
-                </div>
               </div>
             ))}
             </div>
@@ -754,7 +664,7 @@ const Bookings = () => {
       {/* Booking Details Modal */}
       {selectedBooking && (
         <div className="booking-page-modal-overlay" onClick={() => setSelectedBooking(null)}>
-          <div className="booking-page-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="booking-page-modal booking-page-enhanced-modal" onClick={(e) => e.stopPropagation()}>
             <div className="booking-page-modal-header">
               <h2>Booking Details</h2>
               <button 
@@ -766,26 +676,204 @@ const Bookings = () => {
               </button>
             </div>
             <div className="booking-page-details-body">
-              <div className="booking-page-details-grid">
-                <div className="booking-page-details-item">
-                  <span className="booking-page-details-label">Name</span>
-                  <span className="booking-page-details-value">{selectedBooking.user_name || 'N/A'}</span>
-                </div>
-                <div className="booking-page-details-item">
-                  <span className="booking-page-details-label">Email</span>
-                  <span className="booking-page-details-value">{selectedBooking.user_email || 'N/A'}</span>
-                </div>
-                <div className="booking-page-details-item">
-                  <span className="booking-page-details-label">CNIC</span>
-                  <span className="booking-page-details-value">{selectedBooking.user_cnic || 'N/A'}</span>
-                </div>
-                <div className="booking-page-details-item">
-                  <span className="booking-page-details-label">Phone</span>
-                  <span className="booking-page-details-value">{selectedBooking.user_phone_number || 'N/A'}</span>
+              {/* Customer Information */}
+              <div className="booking-page-details-section">
+                <h3 className="booking-page-section-title">Customer Information</h3>
+                <div className="booking-page-details-grid">
+                  <div className="booking-page-details-item">
+                    <span className="booking-page-details-label">Name</span>
+                    <span className="booking-page-details-value">{selectedBooking.user_name || 'N/A'}</span>
+                  </div>
+                  <div className="booking-page-details-item">
+                    <span className="booking-page-details-label">Email</span>
+                    <span className="booking-page-details-value">{selectedBooking.user_email || 'N/A'}</span>
+                  </div>
+                  <div className="booking-page-details-item">
+                    <span className="booking-page-details-label">CNIC</span>
+                    <span className="booking-page-details-value">{selectedBooking.user_cnic || 'N/A'}</span>
+                  </div>
+                  <div className="booking-page-details-item">
+                    <span className="booking-page-details-label">Phone</span>
+                    <span className="booking-page-details-value">{selectedBooking.user_phone_number || 'N/A'}</span>
+                  </div>
                 </div>
               </div>
+
+              {/* Booking Information */}
+              <div className="booking-page-details-section">
+                <h3 className="booking-page-section-title">Booking Information</h3>
+                <div className="booking-page-details-grid">
+                  <div className="booking-page-details-item">
+                    <span className="booking-page-details-label">Booking ID</span>
+                    <span className="booking-page-details-value booking-page-booking-id">#{selectedBooking.booking_id}</span>
+                  </div>
+                  <div className="booking-page-details-item">
+                    <span className="booking-page-details-label">Booking Date</span>
+                    <span className="booking-page-details-value">{formatDate(selectedBooking.booking_date)}</span>
+                  </div>
+                  <div className="booking-page-details-item">
+                    <span className="booking-page-details-label">Shift Type</span>
+                    <span 
+                      className="booking-page-details-value booking-page-shift-badge"
+                      style={{ backgroundColor: getShiftTypeColor(selectedBooking.shift_type) }}
+                    >
+                      {selectedBooking.shift_type || 'Not specified'}
+                    </span>
+                  </div>
+                  <div className="booking-page-details-item">
+                    <span className="booking-page-details-label">Total Cost</span>
+                    <span className="booking-page-details-value booking-page-cost-large">
+                      Rs. {selectedBooking.total_cost?.toLocaleString() || '0'}
+                    </span>
+                  </div>
+                  <div className="booking-page-details-item">
+                    <span className="booking-page-details-label">Booking Source</span>
+                    <span className="booking-page-details-value">{selectedBooking.booking_source || 'Direct'}</span>
+                  </div>
+                  <div className="booking-page-details-item">
+                    <span className="booking-page-details-label">Booked At</span>
+                    <span className="booking-page-details-value">{formatDateTime(selectedBooking.booked_at)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Screenshot */}
+              {selectedBooking.payment_screenshot_url && (
+                <div className="booking-page-details-section">
+                  <h3 className="booking-page-section-title">Payment Screenshot</h3>
+                  <div className="booking-page-payment-screenshot">
+                    <img 
+                      src={selectedBooking.payment_screenshot_url} 
+                      alt="Payment Screenshot" 
+                      className="booking-page-screenshot-image"
+                      onClick={() => window.open(selectedBooking.payment_screenshot_url, '_blank')}
+                    />
+                    <p className="booking-page-screenshot-hint">Click image to view full size</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Status Management */}
+              <div className="booking-page-details-section">
+                <h3 className="booking-page-section-title">Status Management</h3>
+                <div className="booking-page-status-management">
+                  <div className="booking-page-current-status">
+                    <span className="booking-page-details-label">Current Status:</span>
+                    <span 
+                      className="booking-page-status-badge booking-page-status-large"
+                      style={{ backgroundColor: getStatusColor(selectedBooking.status) }}
+                    >
+                      {selectedBooking.status || 'Unknown'}
+                    </span>
+                  </div>
+                  <div className="booking-page-status-actions">
+                    <button
+                      onClick={() => handleStatusChange(selectedBooking.booking_id, 'Pending')}
+                      disabled={selectedBooking.status === 'Pending' || actionLoading[selectedBooking.booking_id]}
+                      className="booking-page-status-btn booking-page-pending-btn"
+                    >
+                      Set Pending
+                    </button>
+                    <button
+                      onClick={() => handleStatusChange(selectedBooking.booking_id, 'Confirmed')}
+                      disabled={selectedBooking.status === 'Confirmed' || actionLoading[selectedBooking.booking_id]}
+                      className="booking-page-status-btn booking-page-confirmed-btn"
+                    >
+                      Confirm
+                    </button>
+                    <button
+                      onClick={() => handleRejectWithReason(selectedBooking.booking_id)}
+                      disabled={selectedBooking.status === 'Cancelled' || actionLoading[selectedBooking.booking_id]}
+                      className="booking-page-status-btn booking-page-cancelled-btn"
+                    >
+                      Reject with Reason
+                    </button>
+                    <button
+                      onClick={() => handleStatusChange(selectedBooking.booking_id, 'Completed')}
+                      disabled={selectedBooking.status === 'Completed' || actionLoading[selectedBooking.booking_id]}
+                      className="booking-page-status-btn booking-page-completed-btn"
+                    >
+                      Complete
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <div className="booking-page-details-footer">
-                <button className="booking-page-back-button" onClick={() => setSelectedBooking(null)}>Close</button>
+                <button className="booking-page-back-button" onClick={() => setSelectedBooking(null)}>
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rejection Reason Modal */}
+      {showRejectionModal && (
+        <div className="booking-page-modal-overlay" onClick={() => setShowRejectionModal(false)}>
+          <div className="booking-page-modal booking-page-rejection-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="booking-page-modal-header">
+              <h2>Reject Booking</h2>
+              <button 
+                className="booking-page-modal-close" 
+                onClick={() => setShowRejectionModal(false)}
+                aria-label="Close modal"
+              >
+                ×
+              </button>
+            </div>
+            <div className="booking-page-details-body">
+              <div className="booking-page-rejection-info">
+                <p><strong>Booking ID:</strong> #{selectedBooking?.booking_id}</p>
+                <p><strong>Customer:</strong> {selectedBooking?.user_name || 'N/A'}</p>
+              </div>
+              
+              <div className="booking-page-rejection-form">
+                <div className="booking-page-form-group">
+                  <label htmlFor="rejectionReason" className="booking-page-form-label">
+                    Rejection Reason <span className="booking-page-required">*</span>
+                  </label>
+                  <textarea
+                    id="rejectionReason"
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    placeholder="Enter the reason for rejecting this booking..."
+                    className="booking-page-form-textarea"
+                    rows="4"
+                    required
+                  />
+                </div>
+                
+                <div className="booking-page-form-group">
+                  <label htmlFor="adminNotes" className="booking-page-form-label">
+                    Admin Notes <span className="booking-page-optional">(Optional)</span>
+                  </label>
+                  <textarea
+                    id="adminNotes"
+                    value={adminNotes}
+                    onChange={(e) => setAdminNotes(e.target.value)}
+                    placeholder="Additional notes for internal use..."
+                    className="booking-page-form-textarea"
+                    rows="3"
+                  />
+                </div>
+              </div>
+
+              <div className="booking-page-details-footer">
+                <button 
+                  className="booking-page-back-button" 
+                  onClick={() => setShowRejectionModal(false)}
+                >
+                  Cancel
+                </button>
+                <button 
+                  className="booking-page-reject-submit-btn" 
+                  onClick={submitRejection}
+                  disabled={!rejectionReason.trim()}
+                >
+                  Reject Booking
+                </button>
               </div>
             </div>
           </div>

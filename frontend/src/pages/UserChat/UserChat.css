@@ -588,10 +588,86 @@
   .user-chat-page-bubble img {
     max-height: 280px;
   }
+  
   .user-chat-page-logout-btn {
     width: 35px;
     height: 35px;
     font-size: 14px;
+  }
+
+  /* Message formatting mobile improvements */
+  .user-chat-page-bubble {
+    max-width: 85%;
+    padding: 10px 14px;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  .user-chat-page-message-content code {
+    font-size: 12px;
+    padding: 1px 4px;
+    word-break: break-all;
+  }
+
+  .user-chat-page-message-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+
+  .user-chat-page-timestamp {
+    font-size: 10px;
+    margin-top: 4px;
+  }
+}
+
+@media (max-width: 480px) {
+  .user-chat-page-bubble {
+    max-width: 90%;
+    padding: 8px 12px;
+    font-size: 13px;
+    border-radius: 16px;
+  }
+
+  .user-chat-page-user-message .user-chat-page-bubble {
+    border-bottom-right-radius: 3px;
+  }
+
+  .user-chat-page-bot-message .user-chat-page-bubble {
+    border-bottom-left-radius: 3px;
+  }
+
+  .user-chat-page-message-content code {
+    font-size: 11px;
+    padding: 1px 3px;
+    border-radius: 3px;
+  }
+
+  .user-chat-page-message-avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+
+  .user-chat-page-message {
+    margin-bottom: 15px;
+    gap: 8px;
+  }
+
+  .user-chat-page-timestamp {
+    font-size: 9px;
+    margin-top: 3px;
+  }
+
+  .user-chat-page-image {
+    max-height: 250px;
+    border-radius: 10px;
+  }
+
+  .user-chat-page-error-message {
+    padding: 10px 12px;
+    font-size: 13px;
+    border-radius: 10px;
   }
 }
 
@@ -1078,9 +1154,49 @@
 
   .user-chat-page-header {
     border-radius: 0;
+    padding: 15px 20px;
+  }
+
+  .user-chat-page-header-avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+
+  .user-chat-page-header-title {
+    font-size: 16px;
+  }
+
+  .user-chat-page-header-status {
+    font-size: 12px;
   }
 
   .user-chat-page-chatbox {
     border-radius: 0;
+  }
+
+  .user-chat-page-messages {
+    padding: 15px;
+  }
+
+  .user-chat-page-input-area {
+    padding: 15px 20px;
+  }
+
+  .user-chat-page-textbox input {
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
+  .user-chat-page-send-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+  }
+
+  .user-chat-page-upload-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
   }
 }
