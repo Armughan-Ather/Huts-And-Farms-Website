@@ -69,6 +69,35 @@ useLayoutEffect(() => {
   const extractBotText = (content) => {
   if (!content) return "";
 
+  // Handle JSON objects - check if string starts with { and ends with }
+  if (typeof content === "string" && content.trim().startsWith("{") && content.trim().endsWith("}")) {
+    try {
+      const parsed = JSON.parse(content.trim());
+      // Handle error messages
+      if (parsed.error) {
+        return parsed.error;
+      }
+      // Handle success/info messages
+      if (parsed.message) {
+        return parsed.message;
+      }
+    } catch (e) {
+      console.error("Failed to parse JSON:", e);
+      // If JSON parsing fails, return the original content
+      return content;
+    }
+  }
+
+  // Handle direct error objects
+  if (typeof content === "object" && content.error) {
+    return content.error;
+  }
+
+  // Handle direct message objects
+  if (typeof content === "object" && content.message) {
+    return content.message;
+  }
+
   // Already clean text
   if (typeof content === "string" && !content.trim().startsWith("[")) {
     return content;
@@ -190,12 +219,29 @@ useLayoutEffect(() => {
   let formatted = text;
 
   /* ---------------------------------
+     0️⃣ Handle line breaks first
+     Convert \n to <br> tags
+  ---------------------------------- */
+  formatted = formatted.replace(/\\n/g, "<br>");
+  formatted = formatted.replace(/\n/g, "<br>");
+
+  /* ---------------------------------
      1️⃣ Bold text: *text* → <strong>
   ---------------------------------- */
   formatted = formatted.replace(/\*(.*?)\*/g, "<strong>$1</strong>");
 
   /* ---------------------------------
-     2️⃣ Handle shift type definitions FIRST
+     2️⃣ Handle backticks for code/IDs: `text` → <code>
+  ---------------------------------- */
+  formatted = formatted.replace(/`([^`]+)`/g, "<code>$1</code>");
+
+  /* ---------------------------------
+     3️⃣ Handle italic text: _text_ → <em>
+  ---------------------------------- */
+  formatted = formatted.replace(/_(.*?)_/g, "<em>$1</em>");
+
+  /* ---------------------------------
+     4️⃣ Handle shift type definitions FIRST
      Prevents them from being broken by other rules
      Pattern: "- Day -> 8 am to 6 pm"
   ---------------------------------- */
@@ -205,19 +251,31 @@ useLayoutEffect(() => {
   );
 
   /* ---------------------------------
-     3️⃣ Handle ‣ bullets (main bullets)
+     5️⃣ Handle ‣ bullets (main bullets)
      Each bullet on new line with proper spacing
   ---------------------------------- */
   formatted = formatted.replace(/\s*‣\s*/g, "<br>‣ ");
 
   /* ---------------------------------
-     4️⃣ Handle numbered lists (farmhouse results)
+     6️⃣ Handle numbered lists (farmhouse results)
      Single <br> for tighter spacing between items
   ---------------------------------- */
   formatted = formatted.replace(/(\d+\.)\s*/g, "<br><strong>$1</strong> ");
 
   /* ---------------------------------
-     5️⃣ Handle "Price (Rs) - 45000" pattern
+     7️⃣ Handle bullet points with • symbol
+     Add proper spacing for bullet lists
+  ---------------------------------- */
+  formatted = formatted.replace(/\s*•\s*/g, "<br>&nbsp;&nbsp;• ");
+
+  /* ---------------------------------
+     8️⃣ Handle numbered emoji lists (1️⃣, 2️⃣, etc.)
+     Add line breaks before emoji numbers
+  ---------------------------------- */
+  formatted = formatted.replace(/\s*([1-9]️⃣)\s*/g, "<br><strong>$1</strong> ");
+
+  /* ---------------------------------
+     9️⃣ Handle "Price (Rs) - 45000" pattern
      Clean format with line break after
   ---------------------------------- */
   formatted = formatted.replace(
@@ -226,7 +284,7 @@ useLayoutEffect(() => {
   );
 
   /* ---------------------------------
-     6️⃣ Catch any remaining pattern like "Rs 45000 Agr"
+     🔟 Catch any remaining pattern like "Rs 45000 Agr"
      Ensures Urdu text always starts on new line
   ---------------------------------- */
   formatted = formatted.replace(
@@ -235,13 +293,13 @@ useLayoutEffect(() => {
   );
 
   /* ---------------------------------
-     7️⃣ Clean up multiple line breaks
+     1️⃣1️⃣ Clean up multiple line breaks
      Max 2 consecutive <br> tags
   ---------------------------------- */
   formatted = formatted.replace(/(<br\s*\/?>){3,}/g, "<br><br>");
   
   /* ---------------------------------
-     8️⃣ Remove leading line breaks
+     1️⃣2️⃣ Remove leading line breaks
   ---------------------------------- */
   formatted = formatted.replace(/^(<br\s*\/?>)+/, "");
 
