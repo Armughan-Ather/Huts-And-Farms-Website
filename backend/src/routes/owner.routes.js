@@ -1,9 +1,11 @@
 import express from 'express';
-import { addOwner, loginOwner } from '../controllers/owner.controller.js';
-import { verifyOwnerToken } from '../middlewares/ownerAuth.middleware.js';
+import { addOwner, loginOwner, getOwnerProperties } from '../controllers/owner.controller.js';
+import { authenticateOwner } from '../middlewares/auth.middleware.js';
+
 const router = express.Router();
 
 router.post('/add', addOwner);
-router.route('/login').post(loginOwner)
+router.post('/login', loginOwner);
+router.get('/properties', authenticateOwner, getOwnerProperties);
 
 export default router;

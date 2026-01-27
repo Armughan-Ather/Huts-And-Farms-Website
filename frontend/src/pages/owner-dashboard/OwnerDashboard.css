@@ -1,0 +1,415 @@
+/* Owner Dashboard Styles */
+.owner-dashboard-page-container {
+  min-height: 100vh;
+  background: #f8fafc;
+  font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Header */
+.owner-dashboard-page-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 24px 0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.owner-dashboard-page-header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.owner-dashboard-page-header-left h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 0;
+  margin-bottom: 8px;
+}
+
+.owner-dashboard-page-subtitle {
+  font-size: 1.1rem;
+  opacity: 0.9;
+  margin: 0;
+}
+
+.owner-dashboard-page-header-right {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.owner-dashboard-page-logout-button {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.owner-dashboard-page-logout-button:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+/* Stats Section */
+.owner-dashboard-page-stats {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 24px 24px;
+}
+
+.owner-dashboard-page-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.owner-dashboard-page-stat-card {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+  transition: all 0.3s ease;
+}
+
+.owner-dashboard-page-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.owner-dashboard-page-stat-number {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 8px;
+  word-break: break-word;
+}
+
+.owner-dashboard-page-stat-label {
+  color: #64748b;
+  font-weight: 500;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Content Section */
+.owner-dashboard-page-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+.owner-dashboard-page-section-header {
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+.owner-dashboard-page-section-header h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 8px;
+}
+
+.owner-dashboard-page-section-header p {
+  color: #64748b;
+  font-size: 1.1rem;
+}
+
+/* Properties Grid */
+.owner-dashboard-page-properties-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 24px;
+}
+
+.owner-dashboard-page-property-card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.owner-dashboard-page-property-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+}
+
+.owner-dashboard-page-property-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.owner-dashboard-page-property-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.owner-dashboard-page-property-type {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.owner-dashboard-page-property-status {
+  background: #dcfce7;
+  color: #166534;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.owner-dashboard-page-property-content {
+  margin-bottom: 20px;
+}
+
+.owner-dashboard-page-property-name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 12px;
+  line-height: 1.3;
+}
+
+.owner-dashboard-page-property-location {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #64748b;
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+}
+
+.owner-dashboard-page-property-username {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.owner-dashboard-page-property-username span {
+  color: #1e293b;
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
+}
+
+.owner-dashboard-page-property-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 16px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.owner-dashboard-page-property-date {
+  color: #94a3b8;
+  font-size: 0.8rem;
+}
+
+.owner-dashboard-page-property-arrow {
+  color: #667eea;
+  transition: transform 0.3s ease;
+}
+
+.owner-dashboard-page-property-card:hover .owner-dashboard-page-property-arrow {
+  transform: translateX(4px);
+}
+
+/* No Properties */
+.owner-dashboard-page-no-properties {
+  text-align: center;
+  padding: 80px 24px;
+}
+
+.owner-dashboard-page-no-data-content {
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.owner-dashboard-page-no-data-content svg {
+  color: #cbd5e1;
+  margin-bottom: 24px;
+}
+
+.owner-dashboard-page-no-data-content h3 {
+  color: #1e293b;
+  margin: 0 0 16px 0;
+  font-size: 1.5rem;
+}
+
+.owner-dashboard-page-no-data-content p {
+  color: #64748b;
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+/* Loading */
+.owner-dashboard-page-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: #f8fafc;
+}
+
+.owner-dashboard-page-loading-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  color: #64748b;
+}
+
+.owner-dashboard-page-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e2e8f0;
+  border-top: 4px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Error */
+.owner-dashboard-page-error {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: #f8fafc;
+}
+
+.owner-dashboard-page-error-container {
+  text-align: center;
+  padding: 48px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+  max-width: 500px;
+}
+
+.owner-dashboard-page-error-container h2 {
+  color: #ef4444;
+  margin: 0 0 16px 0;
+}
+
+.owner-dashboard-page-error-container p {
+  color: #64748b;
+  margin: 0 0 24px 0;
+}
+
+.owner-dashboard-page-retry-button {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.owner-dashboard-page-retry-button:hover {
+  background: #5a67d8;
+  transform: translateY(-2px);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .owner-dashboard-page-header-content {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .owner-dashboard-page-header-left h1 {
+    font-size: 2rem;
+  }
+  
+  .owner-dashboard-page-header-right {
+    justify-content: center;
+  }
+  
+  .owner-dashboard-page-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .owner-dashboard-page-properties-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .owner-dashboard-page-section-header h2 {
+    font-size: 1.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .owner-dashboard-page-header-content {
+    padding: 0 16px;
+  }
+  
+  .owner-dashboard-page-stats {
+    padding: 24px 16px 16px;
+  }
+  
+  .owner-dashboard-page-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .owner-dashboard-page-content {
+    padding: 24px 16px;
+  }
+  
+  .owner-dashboard-page-property-card {
+    padding: 20px;
+  }
+  
+  .owner-dashboard-page-section-header {
+    margin-bottom: 24px;
+  }
+  
+  .owner-dashboard-page-section-header h2 {
+    font-size: 1.5rem;
+  }
+  
+  .owner-dashboard-page-no-properties {
+    padding: 60px 16px;
+  }
+}

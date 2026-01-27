@@ -152,8 +152,32 @@ const Dashboard = () => {
         return;
       }
 
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
-      const response = await axios.get(`${backendUrl}/api/properties`, {
+      // Get property_id from URL parameters if present (for owner access)
+      const urlParams = new URLSearchParams(window.location.search);
+      let propertyId = urlParams.get('property_id');
+      
+      // If no property_id in URL, try to get it from stored property data (for owner access)
+      if (!propertyId) {
+        const propertyData = localStorage.getItem('propertyData');
+        if (propertyData) {
+          try {
+            const parsedPropertyData = JSON.parse(propertyData);
+            propertyId = parsedPropertyData.property_id;
+          } catch (e) {
+            console.log('Error parsing property data:', e);
+          }
+        }
+      }
+      
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+      let apiUrl = `${backendUrl}/api/properties`;
+      
+      // Add property_id parameter if present (for owner access)
+      if (propertyId) {
+        apiUrl += `?property_id=${propertyId}`;
+      }
+      
+      const response = await axios.get(apiUrl, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -205,9 +229,20 @@ const Dashboard = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('propertyToken');
-    localStorage.removeItem('propertyData');
-    window.location.reload();
+    // Check if user is logged in as owner (has ownerToken)
+    const ownerToken = localStorage.getItem('ownerToken');
+    
+    if (ownerToken) {
+      // Owner is logged in - remove property tokens and go back to owner dashboard
+      localStorage.removeItem('propertyToken');
+      localStorage.removeItem('propertyData');
+      window.location.href = '/owner-dashboard';
+    } else {
+      // Direct property login - remove property tokens and go to login
+      localStorage.removeItem('propertyToken');
+      localStorage.removeItem('propertyData');
+      window.location.href = '/admin-login';
+    }
   };
 
   if (loading) {

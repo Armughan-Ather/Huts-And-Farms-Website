@@ -32,6 +32,7 @@
 
 
 import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 import db from '../models/index.js';
 
 const { Owner, sequelize } = db;
@@ -145,7 +146,8 @@ export const loginOwner = async (req, res) => {
         first_name: owner.first_name,
         last_name: owner.last_name,
         email: owner.email,
-        phone_number: owner.phone_number
+        phone_number: owner.phone_number,
+        type: 'owner'
       },
       process.env.JWT_SECRET,
       { expiresIn: '1d' } // Token expires in 1 day
@@ -182,7 +184,7 @@ export const getOwnerProperties = async (req, res) => {
 
     // Fetch properties using raw MySQL query
     const properties = await sequelize.query(
-      'SELECT p.property_id, p.name, p.location, p.type, p.username, p.created_at, p.updated_at ' +
+      'SELECT p.property_id, p.name, p.address, p.type, p.username, p.created_at, p.updated_at ' +
       'FROM properties p ' +
       'INNER JOIN owner_properties op ON p.property_id = op.property_id ' +
       'WHERE op.owner_id = ?',

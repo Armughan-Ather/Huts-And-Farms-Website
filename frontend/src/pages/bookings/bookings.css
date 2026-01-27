@@ -1715,3 +1715,28 @@
     border-radius: 6px;
   }
 }
+/* Bot Booking Notice */
+.booking-page-bot-notice {
+  padding: 1rem;
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  border-radius: 0.5rem;
+  border-left: 4px solid #6366f1;
+  margin-top: 1rem;
+}
+
+.booking-page-bot-message {
+  margin: 0;
+  color: #374151;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.booking-page-bot-message::before {
+  content: "🤖";
+  font-size: 1.25rem;
+}

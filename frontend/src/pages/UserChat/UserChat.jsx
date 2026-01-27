@@ -23,7 +23,7 @@ function UserChat() {
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const [userId, setUserId] = useState(null);
-    const navigate = useNavigate();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -48,8 +48,8 @@ const handleLogout = () => {
   setUserId(null);
   setMessages([]);
   setInputMessage("");
-  // Navigate to login page
-  navigate('/login');
+  // Force page reload to avoid React routing conflicts
+  window.location.href = '/login';
 };
 useLayoutEffect(() => {
   if (messages.length > 0) {
@@ -232,6 +232,8 @@ useLayoutEffect(() => {
       { headers: { "Content-Type": "application/json" } }
     );
 
+    console.log("🔍 [DEBUG] Chat History API Response:", response.data);
+
     const normalizedMessages = (response.data || []).map(msg => {
       let timestamp = msg.timestamp;
       if (timestamp && !/Z|[+-]\d\d:?(\d\d)?$/.test(timestamp)) {
@@ -241,24 +243,52 @@ useLayoutEffect(() => {
       // Clean media URLs for bot messages
       let cleanMediaUrls = msg.media_urls || {};
       if (msg.sender === "bot" && msg.media_urls) {
+        console.log("🔍 [DEBUG] Original bot media_urls:", msg.media_urls);
+        
         cleanMediaUrls = {};
         
         // Clean images array
         if (msg.media_urls.images && Array.isArray(msg.media_urls.images)) {
+          console.log("🔍 [DEBUG] Original images array:", msg.media_urls.images);
+          
           cleanMediaUrls.images = msg.media_urls.images
             .map(url => {
               if (typeof url === 'string') {
                 // Remove any trailing text that might be appended to URLs
                 let cleanUrl = url.trim();
                 
-                // Remove common text contamination patterns
-                cleanUrl = cleanUrl.replace(/\/n\/n.*$/, ''); // Remove /n/nAnd type suffixes
+                // Remove common text contamination patterns - be more aggressive
+                cleanUrl = cleanUrl.replace(/\/n\/n.*$/i, ''); // Remove /n/nAnd type suffixes (case insensitive)
+                cleanUrl = cleanUrl.replace(/\\n\\n.*$/i, ''); // Remove \n\nAnd type suffixes
                 cleanUrl = cleanUrl.replace(/\s+.*$/, ''); // Remove any text after whitespace
+                cleanUrl = cleanUrl.replace(/\/n.*$/i, ''); // Remove /n and everything after
+                cleanUrl = cleanUrl.replace(/\\n.*$/i, ''); // Remove \n and everything after
+                cleanUrl = cleanUrl.replace(/\?.*and.*$/i, ''); // Remove query params with 'and'
                 cleanUrl = cleanUrl.replace(/[^a-zA-Z0-9:\/\.\-_\?&=].*$/, ''); // Remove non-URL characters and everything after
                 
-                // Validate that it's a proper URL
+                // Ensure URL ends with proper image extension and has filename
+                if (cleanUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+                  // URL already has proper extension
+                } else if (cleanUrl.match(/\.(jpg|jpeg|png|gif|webp)/i)) {
+                  // Extract URL up to the image extension
+                  const match = cleanUrl.match(/(.*\.(jpg|jpeg|png|gif|webp))/i);
+                  if (match) {
+                    cleanUrl = match[1];
+                  }
+                } else {
+                  // URL doesn't have proper extension, likely corrupted
+                  console.warn('Image URL without proper extension:', cleanUrl);
+                  return null;
+                }
+                
+                // Validate that it's a proper URL and has filename
                 try {
                   new URL(cleanUrl);
+                  // Check if URL ends with just /images or /videos (invalid)
+                  if (cleanUrl.endsWith('/images') || cleanUrl.endsWith('/videos')) {
+                    console.warn('Invalid URL ending with folder name:', cleanUrl);
+                    return null;
+                  }
                   return cleanUrl;
                 } catch (e) {
                   console.error('Invalid image URL in history:', url, 'cleaned to:', cleanUrl);
@@ -267,21 +297,41 @@ useLayoutEffect(() => {
               }
               return null;
             })
-            .filter(url => url !== null); // Remove invalid URLs
+            .filter(url => url !== null) // Remove invalid URLs
+            .filter((url, index, array) => array.indexOf(url) === index); // Remove duplicates
+          
+          console.log("🔍 [DEBUG] Cleaned images array:", cleanMediaUrls.images);
         }
         
         // Clean videos array
         if (msg.media_urls.videos && Array.isArray(msg.media_urls.videos)) {
+          console.log("🔍 [DEBUG] Original videos array:", msg.media_urls.videos);
+          
           cleanMediaUrls.videos = msg.media_urls.videos
             .map(url => {
               if (typeof url === 'string') {
                 // Remove any trailing text that might be appended to URLs
                 let cleanUrl = url.trim();
                 
-                // Remove common text contamination patterns
-                cleanUrl = cleanUrl.replace(/\/n\/n.*$/, ''); // Remove /n/nAnd type suffixes
+                // Remove common text contamination patterns - be more aggressive
+                cleanUrl = cleanUrl.replace(/\/n\/n.*$/i, ''); // Remove /n/nAnd type suffixes (case insensitive)
+                cleanUrl = cleanUrl.replace(/\\n\\n.*$/i, ''); // Remove \n\nAnd type suffixes
                 cleanUrl = cleanUrl.replace(/\s+.*$/, ''); // Remove any text after whitespace
+                cleanUrl = cleanUrl.replace(/\/n.*$/i, ''); // Remove /n and everything after
+                cleanUrl = cleanUrl.replace(/\\n.*$/i, ''); // Remove \n and everything after
+                cleanUrl = cleanUrl.replace(/\?.*and.*$/i, ''); // Remove query params with 'and'
                 cleanUrl = cleanUrl.replace(/[^a-zA-Z0-9:\/\.\-_\?&=].*$/, ''); // Remove non-URL characters and everything after
+                
+                // Ensure URL ends with proper video extension
+                if (cleanUrl.match(/\.(mp4|avi|mov|wmv|flv|webm|mkv)$/i)) {
+                  // URL already has proper extension
+                } else if (cleanUrl.match(/\.(mp4|avi|mov|wmv|flv|webm|mkv)/i)) {
+                  // Extract URL up to the video extension
+                  const match = cleanUrl.match(/(.*\.(mp4|avi|mov|wmv|flv|webm|mkv))/i);
+                  if (match) {
+                    cleanUrl = match[1];
+                  }
+                }
                 
                 // Validate that it's a proper URL
                 try {
@@ -295,7 +345,11 @@ useLayoutEffect(() => {
               return null;
             })
             .filter(url => url !== null); // Remove invalid URLs
+          
+          console.log("🔍 [DEBUG] Cleaned videos array:", cleanMediaUrls.videos);
         }
+        
+        console.log("🔍 [DEBUG] Final cleaned media_urls:", cleanMediaUrls);
       }
 
       return {
@@ -340,27 +394,57 @@ useLayoutEffect(() => {
         { headers: { "Content-Type": "application/json" } }
       );
 
+      console.log("🔍 [DEBUG] Send Message API Response:", response.data);
+
       if (response.data.status === "success") {
   // Clean and validate media URLs
   const cleanMediaUrls = {};
   
   if (response.data.media_urls) {
+    console.log("🔍 [DEBUG] Original send-message media_urls:", response.data.media_urls);
+    
     // Clean images array
     if (response.data.media_urls.images && Array.isArray(response.data.media_urls.images)) {
+      console.log("🔍 [DEBUG] Original send-message images:", response.data.media_urls.images);
+      
       cleanMediaUrls.images = response.data.media_urls.images
         .map(url => {
           if (typeof url === 'string') {
             // Remove any trailing text that might be appended to URLs
             let cleanUrl = url.trim();
             
-            // Remove common text contamination patterns
-            cleanUrl = cleanUrl.replace(/\/n\/n.*$/, ''); // Remove /n/nAnd type suffixes
+            // Remove common text contamination patterns - be more aggressive
+            cleanUrl = cleanUrl.replace(/\/n\/n.*$/i, ''); // Remove /n/nAnd type suffixes (case insensitive)
+            cleanUrl = cleanUrl.replace(/\\n\\n.*$/i, ''); // Remove \n\nAnd type suffixes
             cleanUrl = cleanUrl.replace(/\s+.*$/, ''); // Remove any text after whitespace
+            cleanUrl = cleanUrl.replace(/\/n.*$/i, ''); // Remove /n and everything after
+            cleanUrl = cleanUrl.replace(/\\n.*$/i, ''); // Remove \n and everything after
+            cleanUrl = cleanUrl.replace(/\?.*and.*$/i, ''); // Remove query params with 'and'
             cleanUrl = cleanUrl.replace(/[^a-zA-Z0-9:\/\.\-_\?&=].*$/, ''); // Remove non-URL characters and everything after
             
-            // Validate that it's a proper URL
+            // Ensure URL ends with proper image extension and has filename
+            if (cleanUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
+              // URL already has proper extension
+            } else if (cleanUrl.match(/\.(jpg|jpeg|png|gif|webp)/i)) {
+              // Extract URL up to the image extension
+              const match = cleanUrl.match(/(.*\.(jpg|jpeg|png|gif|webp))/i);
+              if (match) {
+                cleanUrl = match[1];
+              }
+            } else {
+              // URL doesn't have proper extension, likely corrupted
+              console.warn('Image URL without proper extension:', cleanUrl);
+              return null;
+            }
+            
+            // Validate that it's a proper URL and has filename
             try {
               new URL(cleanUrl);
+              // Check if URL ends with just /images or /videos (invalid)
+              if (cleanUrl.endsWith('/images') || cleanUrl.endsWith('/videos')) {
+                console.warn('Invalid URL ending with folder name:', cleanUrl);
+                return null;
+              }
               return cleanUrl;
             } catch (e) {
               console.error('Invalid image URL:', url, 'cleaned to:', cleanUrl);
@@ -369,25 +453,54 @@ useLayoutEffect(() => {
           }
           return null;
         })
-        .filter(url => url !== null); // Remove invalid URLs
+        .filter(url => url !== null) // Remove invalid URLs
+        .filter((url, index, array) => array.indexOf(url) === index); // Remove duplicates
+      
+      console.log("🔍 [DEBUG] Cleaned send-message images:", cleanMediaUrls.images);
     }
     
     // Clean videos array
     if (response.data.media_urls.videos && Array.isArray(response.data.media_urls.videos)) {
+      console.log("🔍 [DEBUG] Original send-message videos:", response.data.media_urls.videos);
+      
       cleanMediaUrls.videos = response.data.media_urls.videos
         .map(url => {
           if (typeof url === 'string') {
             // Remove any trailing text that might be appended to URLs
             let cleanUrl = url.trim();
             
-            // Remove common text contamination patterns
-            cleanUrl = cleanUrl.replace(/\/n\/n.*$/, ''); // Remove /n/nAnd type suffixes
+            // Remove common text contamination patterns - be more aggressive
+            cleanUrl = cleanUrl.replace(/\/n\/n.*$/i, ''); // Remove /n/nAnd type suffixes (case insensitive)
+            cleanUrl = cleanUrl.replace(/\\n\\n.*$/i, ''); // Remove \n\nAnd type suffixes
             cleanUrl = cleanUrl.replace(/\s+.*$/, ''); // Remove any text after whitespace
+            cleanUrl = cleanUrl.replace(/\/n.*$/i, ''); // Remove /n and everything after
+            cleanUrl = cleanUrl.replace(/\\n.*$/i, ''); // Remove \n and everything after
+            cleanUrl = cleanUrl.replace(/\?.*and.*$/i, ''); // Remove query params with 'and'
             cleanUrl = cleanUrl.replace(/[^a-zA-Z0-9:\/\.\-_\?&=].*$/, ''); // Remove non-URL characters and everything after
             
-            // Validate that it's a proper URL
+            // Ensure URL ends with proper video extension and has filename
+            if (cleanUrl.match(/\.(mp4|avi|mov|wmv|flv|webm|mkv)$/i)) {
+              // URL already has proper extension
+            } else if (cleanUrl.match(/\.(mp4|avi|mov|wmv|flv|webm|mkv)/i)) {
+              // Extract URL up to the video extension
+              const match = cleanUrl.match(/(.*\.(mp4|avi|mov|wmv|flv|webm|mkv))/i);
+              if (match) {
+                cleanUrl = match[1];
+              }
+            } else {
+              // URL doesn't have proper extension, likely corrupted
+              console.warn('Video URL without proper extension:', cleanUrl);
+              return null;
+            }
+            
+            // Validate that it's a proper URL and has filename
             try {
               new URL(cleanUrl);
+              // Check if URL ends with just /videos or /images (invalid)
+              if (cleanUrl.endsWith('/images') || cleanUrl.endsWith('/videos')) {
+                console.warn('Invalid URL ending with folder name:', cleanUrl);
+                return null;
+              }
               return cleanUrl;
             } catch (e) {
               console.error('Invalid video URL:', url, 'cleaned to:', cleanUrl);
@@ -396,8 +509,13 @@ useLayoutEffect(() => {
           }
           return null;
         })
-        .filter(url => url !== null); // Remove invalid URLs
+        .filter(url => url !== null) // Remove invalid URLs
+        .filter((url, index, array) => array.indexOf(url) === index); // Remove duplicates
+      
+      console.log("🔍 [DEBUG] Cleaned send-message videos:", cleanMediaUrls.videos);
     }
+    
+    console.log("🔍 [DEBUG] Final send-message cleaned media_urls:", cleanMediaUrls);
   }
 
   const botMsg = {
@@ -406,6 +524,8 @@ useLayoutEffect(() => {
     media_urls: cleanMediaUrls,
     timestamp: new Date().toISOString(),
   };
+  
+  console.log("🔍 [DEBUG] Final bot message object:", botMsg);
 
   setMessages((prev) => [...prev, botMsg]);
 } else {

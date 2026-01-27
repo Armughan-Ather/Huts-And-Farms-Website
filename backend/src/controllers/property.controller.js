@@ -475,8 +475,39 @@ export const editProperty = async (req, res) => {
       throw new Error('Property model is undefined. Check models/index.js exports.');
     }
 
+    // Get property_id from either property or owner token
+    let property_id;
+    
+    if (req.property) {
+      // Property token - get property_id from token
+      property_id = req.property.property_id;
+    } else if (req.owner) {
+      // Owner token - get property_id from request body and validate ownership
+      property_id = req.body.property_id;
+      
+      if (!property_id) {
+        await transaction.rollback();
+        return res.status(400).json({ error: 'Property ID is required for owner access' });
+      }
+      
+      // Verify that the owner actually owns this property
+      const ownerProperty = await OwnerProperty.findOne({
+        where: {
+          owner_id: req.owner.owner_id,
+          property_id: property_id
+        }
+      });
+      
+      if (!ownerProperty) {
+        await transaction.rollback();
+        return res.status(403).json({ error: 'Access denied. You do not own this property.' });
+      }
+    } else {
+      await transaction.rollback();
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
     const {
-      property_id,
       name,
       description,
       address,
@@ -598,7 +629,39 @@ export const editPropertyAmenities = async (req, res) => {
       throw new Error('One or more models are undefined. Check models/index.js exports.');
     }
 
-    const { property_id, amenities } = req.body;
+    // Get property_id from either property or owner token
+    let property_id;
+    
+    if (req.property) {
+      // Property token - get property_id from token
+      property_id = req.property.property_id;
+    } else if (req.owner) {
+      // Owner token - get property_id from request body and validate ownership
+      property_id = req.body.property_id;
+      
+      if (!property_id) {
+        await transaction.rollback();
+        return res.status(400).json({ error: 'Property ID is required for owner access' });
+      }
+      
+      // Verify that the owner actually owns this property
+      const ownerProperty = await OwnerProperty.findOne({
+        where: {
+          owner_id: req.owner.owner_id,
+          property_id: property_id
+        }
+      });
+      
+      if (!ownerProperty) {
+        await transaction.rollback();
+        return res.status(403).json({ error: 'Access denied. You do not own this property.' });
+      }
+    } else {
+      await transaction.rollback();
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const { amenities } = req.body;
 
     // Validate required fields
     if (!property_id) {
@@ -680,8 +743,39 @@ export const deletePropertyMedia = async (req, res) => {
     }
     console.log('Delete media request body:', req.body);
 
-    const { property_id, image_ids, video_ids } = req.body;
+    // Get property_id from either property or owner token
+    let property_id;
+    
+    if (req.property) {
+      // Property token - get property_id from token
+      property_id = req.property.property_id;
+    } else if (req.owner) {
+      // Owner token - get property_id from request body and validate ownership
+      property_id = req.body.property_id;
+      
+      if (!property_id) {
+        await transaction.rollback();
+        return res.status(400).json({ error: 'Property ID is required for owner access' });
+      }
+      
+      // Verify that the owner actually owns this property
+      const ownerProperty = await OwnerProperty.findOne({
+        where: {
+          owner_id: req.owner.owner_id,
+          property_id: property_id
+        }
+      });
+      
+      if (!ownerProperty) {
+        await transaction.rollback();
+        return res.status(403).json({ error: 'Access denied. You do not own this property.' });
+      }
+    } else {
+      await transaction.rollback();
+      return res.status(401).json({ error: 'Authentication required' });
+    }
 
+    const { image_ids, video_ids } = req.body;
 
     // Validate required fields
     if (!property_id) {
@@ -790,7 +884,39 @@ export const editPropertyPricing = async (req, res) => {
       throw new Error('One or more models are undefined. Check models/index.js exports.');
     }
 
-    const { property_id, pricing_data } = req.body;
+    // Get property_id from either property or owner token
+    let property_id;
+    
+    if (req.property) {
+      // Property token - get property_id from token
+      property_id = req.property.property_id;
+    } else if (req.owner) {
+      // Owner token - get property_id from request body and validate ownership
+      property_id = req.body.property_id;
+      
+      if (!property_id) {
+        await transaction.rollback();
+        return res.status(400).json({ error: 'Property ID is required for owner access' });
+      }
+      
+      // Verify that the owner actually owns this property
+      const ownerProperty = await OwnerProperty.findOne({
+        where: {
+          owner_id: req.owner.owner_id,
+          property_id: property_id
+        }
+      });
+      
+      if (!ownerProperty) {
+        await transaction.rollback();
+        return res.status(403).json({ error: 'Access denied. You do not own this property.' });
+      }
+    } else {
+      await transaction.rollback();
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const { pricing_data } = req.body;
 
     // Validate required fields
     if (!property_id || !pricing_data) {
@@ -912,7 +1038,37 @@ export const uploadPropertyMedia = async (req, res) => {
       throw new Error('One or more models are undefined. Check models/index.js exports.');
     }
 
-    const { property_id } = req.body;
+    // Get property_id from either property or owner token
+    let property_id;
+    
+    if (req.property) {
+      // Property token - get property_id from token
+      property_id = req.property.property_id;
+    } else if (req.owner) {
+      // Owner token - get property_id from request body and validate ownership
+      property_id = req.body.property_id;
+      
+      if (!property_id) {
+        await transaction.rollback();
+        return res.status(400).json({ error: 'Property ID is required for owner access' });
+      }
+      
+      // Verify that the owner actually owns this property
+      const ownerProperty = await OwnerProperty.findOne({
+        where: {
+          owner_id: req.owner.owner_id,
+          property_id: property_id
+        }
+      });
+      
+      if (!ownerProperty) {
+        await transaction.rollback();
+        return res.status(403).json({ error: 'Access denied. You do not own this property.' });
+      }
+    } else {
+      await transaction.rollback();
+      return res.status(401).json({ error: 'Authentication required' });
+    }
 
     // Validate required fields
     if (!property_id) {
@@ -1042,12 +1198,39 @@ export const loginProperty = async (req, res) => {
 };
 export const getProperty = async (req, res) => {
   try {
-    // Get property_id from middleware
-    const { property_id } = req.property;
+    let property_id;
+    
+    // Handle both property and owner authentication
+    if (req.property) {
+      // Property token - get property_id from token
+      property_id = req.property.property_id;
+    } else if (req.owner) {
+      // Owner token - get property_id from localStorage/request body
+      // For owner access, we expect the property_id to be passed in the request
+      property_id = req.query.property_id || req.body.property_id;
+      
+      if (!property_id) {
+        return res.status(400).json({ error: 'Property ID is required for owner access' });
+      }
+      
+      // Verify that the owner actually owns this property
+      const ownerProperty = await OwnerProperty.findOne({
+        where: {
+          owner_id: req.owner.owner_id,
+          property_id: property_id
+        }
+      });
+      
+      if (!ownerProperty) {
+        return res.status(403).json({ error: 'Access denied. You do not own this property.' });
+      }
+    } else {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
 
-    // Validate property_id from middleware
+    // Validate property_id
     if (!property_id) {
-      return res.status(401).json({ error: 'Property ID not found in authentication data' });
+      return res.status(400).json({ error: 'Property ID not found' });
     }
 
     // Find property with associated data

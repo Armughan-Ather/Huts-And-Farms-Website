@@ -1,4 +1,4 @@
-/* Modern Login Page Styles */
+/* Unified Login Page Styles */
 * {
   margin: 0;
   padding: 0;
@@ -11,14 +11,14 @@ body {
   color: #333;
 }
 
-.login-container {
+.unified-login-page-container {
   display: flex;
   min-height: 100vh;
   background: #f8fafc;
 }
 
 /* Left Panel - Branding */
-.login-left-panel {
+.unified-login-page-left-panel {
   flex: 1;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   display: flex;
@@ -29,7 +29,7 @@ body {
   overflow: hidden;
 }
 
-.login-left-panel::before {
+.unified-login-page-left-panel::before {
   content: '';
   position: absolute;
   top: 0;
@@ -40,7 +40,7 @@ body {
   opacity: 0.3;
 }
 
-.login-branding {
+.unified-login-page-branding {
   text-align: center;
   color: white;
   z-index: 1;
@@ -48,11 +48,11 @@ body {
   max-width: 400px;
 }
 
-.login-logo {
+.unified-login-page-logo {
   margin-bottom: 32px;
 }
 
-.login-logo-icon {
+.unified-login-page-logo-icon {
   width: 120px;
   height: 120px;
   background: rgba(255, 255, 255, 0.15);
@@ -71,27 +71,27 @@ body {
   50% { transform: translateY(-10px); }
 }
 
-.login-title {
+.unified-login-page-title {
   font-size: 3rem;
   font-weight: 700;
   margin-bottom: 16px;
   letter-spacing: -0.02em;
 }
 
-.login-subtitle {
+.unified-login-page-subtitle {
   font-size: 1.125rem;
   opacity: 0.9;
   margin-bottom: 48px;
   font-weight: 400;
 }
 
-.login-features {
+.unified-login-page-features {
   text-align: left;
   max-width: 300px;
   margin: 0 auto;
 }
 
-.login-feature {
+.unified-login-page-feature {
   display: flex;
   align-items: center;
   margin-bottom: 20px;
@@ -99,7 +99,7 @@ body {
   font-weight: 500;
 }
 
-.login-feature-icon {
+.unified-login-page-feature-icon {
   width: 24px;
   height: 24px;
   background: #10b981;
@@ -113,7 +113,7 @@ body {
 }
 
 /* Right Panel - Form */
-.login-right-panel {
+.unified-login-page-right-panel {
   flex: 1;
   display: flex;
   align-items: center;
@@ -122,33 +122,69 @@ body {
   background: white;
 }
 
-.login-form-container {
+.unified-login-page-form-container {
   width: 100%;
-  max-width: 400px;
+  max-width: 420px;
 }
 
-.login-form-header {
+/* Login Type Selector */
+.unified-login-page-type-selector {
+  display: flex;
+  background: #f1f5f9;
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 32px;
+  gap: 2px;
+}
+
+.unified-login-page-type-btn {
+  flex: 1;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.unified-login-page-type-btn:hover {
+  color: #475569;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.unified-login-page-type-btn.active {
+  background: white;
+  color: #667eea;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.unified-login-page-form-header {
   text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: 32px;
 }
 
-.login-form-header h2 {
+.unified-login-page-form-header h2 {
   font-size: 2rem;
   font-weight: 700;
   color: #1e293b;
   margin-bottom: 8px;
 }
 
-.login-form-header p {
+.unified-login-page-form-header p {
   color: #64748b;
   font-size: 1rem;
 }
 
-.login-form {
+.unified-login-page-form {
   width: 100%;
 }
 
-.login-error {
+.unified-login-page-error {
   background: #fef2f2;
   border: 1px solid #fecaca;
   color: #dc2626;
@@ -166,11 +202,11 @@ body {
   75% { transform: translateX(5px); }
 }
 
-.login-form-group {
+.unified-login-page-form-group {
   margin-bottom: 20px;
 }
 
-.login-input {
+.unified-login-page-input {
   width: 100%;
   padding: 16px 20px;
   border: 2px solid #e2e8f0;
@@ -181,22 +217,22 @@ body {
   color: #1e293b;
 }
 
-.login-input:focus {
+.unified-login-page-input:focus {
   outline: none;
   border-color: #667eea;
   background: white;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-.login-input::placeholder {
+.unified-login-page-input::placeholder {
   color: #94a3b8;
 }
 
-.login-password-container {
+.unified-login-page-password-container {
   position: relative;
 }
 
-.login-password-toggle {
+.unified-login-page-password-toggle {
   position: absolute;
   right: 16px;
   top: 50%;
@@ -210,12 +246,12 @@ body {
   transition: all 0.2s ease;
 }
 
-.login-password-toggle:hover {
+.unified-login-page-password-toggle:hover {
   color: #667eea;
   background: #f1f5f9;
 }
 
-.login-button {
+.unified-login-page-button {
   width: 100%;
   padding: 16px 24px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -233,24 +269,24 @@ body {
   margin-bottom: 24px;
 }
 
-.login-button:hover:not(:disabled) {
+.unified-login-page-button:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
 }
 
-.login-button:disabled {
+.unified-login-page-button:disabled {
   opacity: 0.7;
   cursor: not-allowed;
   transform: none;
 }
 
-.login-loading {
+.unified-login-page-loading {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.login-spinner {
+.unified-login-page-spinner {
   width: 20px;
   height: 20px;
   border: 2px solid rgba(255, 255, 255, 0.3);
@@ -264,7 +300,7 @@ body {
   100% { transform: rotate(360deg); }
 }
 
-.login-divider {
+.unified-login-page-divider {
   text-align: center;
   margin: 24px 0;
   position: relative;
@@ -272,7 +308,7 @@ body {
   font-size: 0.875rem;
 }
 
-.login-divider::before {
+.unified-login-page-divider::before {
   content: '';
   position: absolute;
   top: 50%;
@@ -283,96 +319,110 @@ body {
   z-index: 1;
 }
 
-.login-divider span {
+.unified-login-page-divider span {
   background: white;
   padding: 0 16px;
   position: relative;
   z-index: 2;
 }
 
-.login-signup {
+.unified-login-page-signup {
   text-align: center;
   color: #64748b;
   font-size: 0.875rem;
 }
 
-.login-signup-link {
+.unified-login-page-signup-link {
   color: #667eea;
   text-decoration: none;
   font-weight: 600;
   transition: color 0.2s ease;
 }
 
-.login-signup-link:hover {
+.unified-login-page-signup-link:hover {
   color: #764ba2;
 }
 
 /* Responsive Design */
 @media (max-width: 1024px) {
-  .login-left-panel {
+  .unified-login-page-left-panel {
     padding: 40px 30px;
   }
   
-  .login-title {
+  .unified-login-page-title {
     font-size: 2.5rem;
   }
 }
 
 @media (max-width: 768px) {
-  .login-container {
+  .unified-login-page-container {
     flex-direction: column;
   }
   
-  .login-left-panel {
+  .unified-login-page-left-panel {
     min-height: 40vh;
     padding: 40px 20px;
   }
   
-  .login-title {
+  .unified-login-page-title {
     font-size: 2rem;
   }
   
-  .login-logo-icon {
+  .unified-login-page-logo-icon {
     width: 80px;
     height: 80px;
   }
   
-  .login-features {
+  .unified-login-page-features {
     display: none;
   }
   
-  .login-right-panel {
+  .unified-login-page-right-panel {
     padding: 40px 20px;
   }
   
-  .login-form-header h2 {
+  .unified-login-page-form-header h2 {
     font-size: 1.75rem;
+  }
+
+  .unified-login-page-type-selector {
+    margin-bottom: 24px;
+  }
+
+  .unified-login-page-type-btn {
+    padding: 10px 12px;
+    font-size: 0.8rem;
   }
 }
 
 @media (max-width: 480px) {
-  .login-left-panel {
+  .unified-login-page-left-panel {
     padding: 30px 16px;
   }
   
-  .login-title {
+  .unified-login-page-title {
     font-size: 1.75rem;
   }
   
-  .login-subtitle {
+  .unified-login-page-subtitle {
     font-size: 1rem;
   }
   
-  .login-right-panel {
+  .unified-login-page-right-panel {
     padding: 30px 16px;
   }
   
-  .login-input {
+  .unified-login-page-input {
     padding: 14px 16px;
   }
   
-  .login-button {
+  .unified-login-page-button {
     padding: 14px 20px;
+  }
+
+  .unified-login-page-type-btn {
+    padding: 8px 10px;
+    font-size: 0.75rem;
   }
 }
 
@@ -385,9 +435,10 @@ body {
   }
 }
 
-.login-input:focus-visible,
-.login-button:focus-visible,
-.login-password-toggle:focus-visible {
+.unified-login-page-input:focus-visible,
+.unified-login-page-button:focus-visible,
+.unified-login-page-password-toggle:focus-visible,
+.unified-login-page-type-btn:focus-visible {
   outline: 2px solid #667eea;
   outline-offset: 2px;
 } 

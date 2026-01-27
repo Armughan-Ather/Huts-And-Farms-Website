@@ -55,7 +55,7 @@ const MediaManager = ({ propertyData, onMediaUpdated }) => {
         return;
       }
 
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
       const formData = new FormData();
       
       formData.append('property_id', property.property_id);
@@ -124,7 +124,7 @@ const MediaManager = ({ propertyData, onMediaUpdated }) => {
         return;
       }
 
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
       const deleteData = {
         property_id: property.property_id
       };

@@ -77,7 +77,7 @@ const EditAmenitiesModal = ({ isOpen, onClose, propertyData, onAmenitiesUpdated 
         amenity.value && amenity.value.trim() !== ''
       );
 
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
       
       await axios.post(`${backendUrl}/api/properties/edit/amenities`, {
         property_id: propertyData.property.property_id,

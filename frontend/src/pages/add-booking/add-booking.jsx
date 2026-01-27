@@ -33,11 +33,34 @@
          setLoading(false);
          return;
        }
+
+       // Get property_id from URL parameters if present (for owner access)
+       const urlParams = new URLSearchParams(window.location.search);
+       let propertyId = urlParams.get('property_id');
+       
+       // If no property_id in URL, try to get it from stored property data (for owner access)
+       if (!propertyId) {
+         const propertyData = localStorage.getItem('propertyData');
+         if (propertyData) {
+           try {
+             const parsedPropertyData = JSON.parse(propertyData);
+             propertyId = parsedPropertyData.property_id;
+           } catch (e) {
+             console.log('Error parsing property data:', e);
+           }
+         }
+       }
+
+       // Prepare request data
+       const requestData = { ...formData };
+       if (propertyId) {
+         requestData.property_id = propertyId;
+       }
  
-       const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
+       const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
        await axios.post(
          `${backendUrl}/api/bookings/create`,
-         formData,
+         requestData,
          {
            headers: {
              'Authorization': `Bearer ${token}`,
@@ -50,7 +73,28 @@
        setLoading(false);
  
        setTimeout(() => {
-         window.location.href = '/bookings';
+         // Get property_id for redirect
+         const urlParams = new URLSearchParams(window.location.search);
+         let propertyId = urlParams.get('property_id');
+         
+         if (!propertyId) {
+           const propertyData = localStorage.getItem('propertyData');
+           if (propertyData) {
+             try {
+               const parsedPropertyData = JSON.parse(propertyData);
+               propertyId = parsedPropertyData.property_id;
+             } catch (e) {
+               console.log('Error parsing property data:', e);
+             }
+           }
+         }
+         
+         // Navigate to bookings with property_id if available
+         if (propertyId) {
+           window.location.href = `/bookings?property_id=${propertyId}`;
+         } else {
+           window.location.href = '/bookings';
+         }
        }, 1200);
      } catch (err) {
        if (err.response?.data?.error) {
@@ -67,11 +111,53 @@
    };
  
    const handleBackToBookings = () => {
-     window.location.href = '/bookings';
+     // Get property_id from URL parameters or localStorage
+     const urlParams = new URLSearchParams(window.location.search);
+     let propertyId = urlParams.get('property_id');
+     
+     if (!propertyId) {
+       const propertyData = localStorage.getItem('propertyData');
+       if (propertyData) {
+         try {
+           const parsedPropertyData = JSON.parse(propertyData);
+           propertyId = parsedPropertyData.property_id;
+         } catch (e) {
+           console.log('Error parsing property data:', e);
+         }
+       }
+     }
+     
+     // Navigate to bookings with property_id if available
+     if (propertyId) {
+       window.location.href = `/bookings?property_id=${propertyId}`;
+     } else {
+       window.location.href = '/bookings';
+     }
    };
  
    const handleBackToDashboard = () => {
-     window.location.href = '/dashboard';
+     // Get property_id from URL parameters or localStorage
+     const urlParams = new URLSearchParams(window.location.search);
+     let propertyId = urlParams.get('property_id');
+     
+     if (!propertyId) {
+       const propertyData = localStorage.getItem('propertyData');
+       if (propertyData) {
+         try {
+           const parsedPropertyData = JSON.parse(propertyData);
+           propertyId = parsedPropertyData.property_id;
+         } catch (e) {
+           console.log('Error parsing property data:', e);
+         }
+       }
+     }
+     
+     // Navigate to dashboard with property_id if available
+     if (propertyId) {
+       window.location.href = `/dashboard?property_id=${propertyId}`;
+     } else {
+       window.location.href = '/dashboard';
+     }
    };
  
    return (

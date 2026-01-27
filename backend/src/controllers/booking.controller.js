@@ -1,7 +1,48 @@
 import { v4 as uuidv4 } from 'uuid';
 import db from '../models/index.js';
 
-const { Booking, User, Property, PropertyPricing, PropertyShiftPricing, sequelize } = db;
+const { Booking, User, Property, PropertyPricing, PropertyShiftPricing, OwnerProperty, sequelize } = db;
+
+// Helper function to get property_id from either property or owner token
+const getPropertyId = async (req) => {
+  if (req.property && req.property.property_id) {
+    // Property token - get property_id directly
+    return req.property.property_id;
+  } else if (req.owner && req.owner.owner_id) {
+    // Owner token - get property_id from query/body and validate ownership
+    const property_id = req.query.property_id || req.body.property_id;
+    
+    if (!property_id) {
+      // If no specific property_id provided, return null to indicate "all properties for this owner"
+      return null;
+    }
+    
+    // Verify that the owner actually owns this property
+    const ownerProperty = await OwnerProperty.findOne({
+      where: {
+        owner_id: req.owner.owner_id,
+        property_id: property_id
+      }
+    });
+    
+    if (!ownerProperty) {
+      throw new Error('Access denied. You do not own this property.');
+    }
+    
+    return property_id;
+  } else {
+    throw new Error('Authentication required - no valid property or owner token found');
+  }
+};
+
+// Helper function to get all property IDs for an owner
+const getOwnerPropertyIds = async (owner_id) => {
+  const ownerProperties = await OwnerProperty.findAll({
+    where: { owner_id },
+    attributes: ['property_id']
+  });
+  return ownerProperties.map(op => op.property_id);
+};
 
 // export const createBooking = async (req, res) => {
 //   const transaction = await sequelize.transaction();
@@ -168,11 +209,36 @@ const { Booking, User, Property, PropertyPricing, PropertyShiftPricing, sequeliz
 export const createBooking = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
-    // Get property_id from middleware
-    const { property_id } = req.property;
+    // Get property_id from either property or owner token
+    let property_id = await getPropertyId(req);
+    
+    // If getPropertyId returns null (owner without property_id in query), 
+    // check if property_id is in the request body
+    if (!property_id && req.owner && req.body.property_id) {
+      // Verify that the owner actually owns this property
+      const ownerProperty = await OwnerProperty.findOne({
+        where: {
+          owner_id: req.owner.owner_id,
+          property_id: req.body.property_id
+        }
+      });
+      
+      if (!ownerProperty) {
+        await transaction.rollback();
+        return res.status(403).json({ error: 'Access denied. You do not own this property.' });
+      }
+      
+      property_id = req.body.property_id;
+    }
+    
+    if (!property_id) {
+      await transaction.rollback();
+      return res.status(400).json({ error: 'Property ID is required for creating bookings' });
+    }
+    
     const { cnic, phone_no, name, booking_date, shift_type, //booking_source 
     } = req.body;
-    const booking_source = req.body.booking_source || 'Third-Party'; // Default to 'Third party' 
+    const booking_source = req.body.booking_source || 'Website'; // Default to 'Website' for web bookings 
 
     // Validate required fields
     if (!cnic || !phone_no || !name || !property_id || !booking_date || !shift_type || !booking_source) {
@@ -235,22 +301,16 @@ export const createBooking = async (req, res) => {
       return res.status(400).json({ error: `Booking ID ${booking_id} already exists` });
     }
 
-    // Find or create user by cnic using raw MySQL query
-    const users = await sequelize.query(
-      'SELECT user_id, cnic, phone_number, name FROM users WHERE cnic = ?',
-      {
-        replacements: [cleanCnic],
-        type: sequelize.QueryTypes.SELECT,
-        transaction,
-      }
-    );
+    // Find or create user by cnic using Sequelize ORM
+    let user = await User.findOne({
+      where: { cnic: cleanCnic },
+      attributes: ['user_id', 'cnic', 'phone_number', 'name'],
+      transaction,
+    });
 
-    let user;
-    if (users.length > 0) {
-      user = users[0];
-    } else {
+    if (!user) {
       user = await User.create({
-        user_id: sequelize.fn('UUID'), // MySQL-compatible UUID
+        user_id: uuidv4(), // Generate UUID using uuid package
         cnic: cleanCnic,
         phone_number: phone_no,
         name: name.trim(),
@@ -365,17 +425,36 @@ export const createBooking = async (req, res) => {
 
 export const viewPropertyBookings = async (req, res) => {
   try {
-    // Get property_id from middleware
-    const { property_id } = req.property;
-
-    // Validate property_id from middleware
-    if (!property_id) {
-      return res.status(401).json({ error: 'Property ID not found in authentication data' });
+    // Check if we have any authentication
+    if (!req.property && !req.owner) {
+      return res.status(401).json({ error: 'Authentication required - no property or owner token found' });
+    }
+    
+    // Get property_id from either property or owner token
+    const property_id = await getPropertyId(req);
+    
+    let whereClause;
+    
+    if (property_id) {
+      // Specific property requested
+      whereClause = { property_id };
+    } else if (req.owner) {
+      // Owner token without specific property - get all properties for this owner
+      const ownerPropertyIds = await getOwnerPropertyIds(req.owner.owner_id);
+      if (ownerPropertyIds.length === 0) {
+        return res.json({
+          message: 'No bookings found',
+          bookings: []
+        });
+      }
+      whereClause = { property_id: ownerPropertyIds };
+    } else {
+      return res.status(400).json({ error: 'Property ID is required' });
     }
 
-    // Find all bookings for the property
+    // Find all bookings for the property/properties
     const bookings = await Booking.findAll({
-      where: { property_id },
+      where: whereClause,
       include: [
         {
           model: User,
@@ -436,19 +515,38 @@ export const cancelBooking = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const { booking_id } = req.body;
-    const { property_id } = req.property;
+    
+    // Get property_id from either property or owner token
+    const property_id = await getPropertyId(req);
 
     // Validate required fields
-    if (!booking_id || !property_id) {
+    if (!booking_id) {
       await transaction.rollback();
-      return res.status(400).json({ error: 'Missing required fields: booking_id, property_id' });
+      return res.status(400).json({ error: 'Missing required field: booking_id' });
+    }
+
+    // Build where clause for finding booking
+    let whereClause = { booking_id };
+    
+    if (property_id) {
+      // Specific property
+      whereClause.property_id = property_id;
+    } else if (req.owner) {
+      // Owner token - verify they own the property for this booking
+      const ownerPropertyIds = await getOwnerPropertyIds(req.owner.owner_id);
+      if (ownerPropertyIds.length === 0) {
+        await transaction.rollback();
+        return res.status(403).json({ error: 'No properties found for this owner' });
+      }
+      whereClause.property_id = ownerPropertyIds;
     }
 
     // Find booking
     const booking = await Booking.findOne({
-      where: { booking_id, property_id },
+      where: whereClause,
       transaction,
     });
+    
     if (!booking) {
       await transaction.rollback();
       return res.status(404).json({ error: 'Booking not found or not associated with this property' });
@@ -496,19 +594,38 @@ export const confirmBooking = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const { booking_id } = req.body;
-    const { property_id } = req.property;
+    
+    // Get property_id from either property or owner token
+    const property_id = await getPropertyId(req);
     
     // Validate required fields
-    if (!booking_id || !property_id) {
+    if (!booking_id) {
       await transaction.rollback();
-      return res.status(400).json({ error: 'Missing required fields: booking_id, property_id' });
+      return res.status(400).json({ error: 'Missing required field: booking_id' });
+    }
+
+    // Build where clause for finding booking
+    let whereClause = { booking_id };
+    
+    if (property_id) {
+      // Specific property
+      whereClause.property_id = property_id;
+    } else if (req.owner) {
+      // Owner token - verify they own the property for this booking
+      const ownerPropertyIds = await getOwnerPropertyIds(req.owner.owner_id);
+      if (ownerPropertyIds.length === 0) {
+        await transaction.rollback();
+        return res.status(403).json({ error: 'No properties found for this owner' });
+      }
+      whereClause.property_id = ownerPropertyIds;
     }
 
     // Find booking
     const booking = await Booking.findOne({
-      where: { booking_id, property_id },
+      where: whereClause,
       transaction,
     });
+    
     if (!booking) {
       await transaction.rollback();
       return res.status(404).json({ error: 'Booking not found or not associated with this property' });
@@ -627,27 +744,41 @@ export const confirmBooking = async (req, res) => {
 export const completeBooking = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
-    // Get property_id from middleware
-    const { property_id } = req.property;
-
-    // Validate property_id
-    if (!property_id) {
+    // Get property_id from either property or owner token
+    const property_id = await getPropertyId(req);
+    
+    let whereClause = {
+      status: 'Confirmed',
+      booking_date: {
+        [db.Sequelize.Op.lt]: new Date()
+      }
+    };
+    
+    if (property_id) {
+      // Specific property
+      whereClause.property_id = property_id;
+    } else if (req.owner) {
+      // Owner token without specific property - get all properties for this owner
+      const ownerPropertyIds = await getOwnerPropertyIds(req.owner.owner_id);
+      if (ownerPropertyIds.length === 0) {
+        await transaction.commit();
+        return res.json({
+          message: 'No properties found for this owner',
+          completedCount: 0
+        });
+      }
+      whereClause.property_id = ownerPropertyIds;
+    } else {
       await transaction.rollback();
-      return res.status(401).json({ error: 'Property ID not found in authentication data' });
+      return res.status(400).json({ error: 'Property access required' });
     }
 
-    // Find all confirmed bookings with past booking_date using raw MySQL query
-    const currentDate = new Date();
-    const bookings = await sequelize.query(
-      'SELECT booking_id, user_id, property_id, booking_date, shift_type, total_cost, booking_source, status, booked_at, created_at, updated_at ' +
-      'FROM bookings ' +
-      'WHERE property_id = ? AND status = ? AND booking_date < ?',
-      {
-        replacements: [property_id, 'Confirmed', currentDate],
-        type: sequelize.QueryTypes.SELECT,
-        transaction,
-      }
-    );
+    // Find all confirmed bookings with past booking_date using Sequelize ORM
+    const bookings = await Booking.findAll({
+      where: whereClause,
+      attributes: ['booking_id', 'user_id', 'property_id', 'booking_date', 'shift_type', 'total_cost', 'booking_source', 'status', 'booked_at', 'created_at', 'updated_at'],
+      transaction,
+    });
 
     // If no eligible bookings, return empty array
     if (!bookings.length) {
@@ -658,20 +789,24 @@ export const completeBooking = async (req, res) => {
       });
     }
 
-    // Update status to Completed for all eligible bookings
+    // Update status to Completed for all eligible bookings using Sequelize ORM
     const updatedBookings = await Promise.all(
       bookings.map(async (booking) => {
-        await sequelize.query(
-          'UPDATE bookings SET status = ?, updated_at = ? WHERE booking_id = ?',
-          {
-            replacements: ['Completed', new Date(), booking.booking_id],
-            type: sequelize.QueryTypes.UPDATE,
-            transaction,
-          }
+        await booking.update(
+          { status: 'Completed', updated_at: new Date() },
+          { transaction }
         );
         return {
-          ...booking,
+          booking_id: booking.booking_id,
+          user_id: booking.user_id,
+          property_id: booking.property_id,
+          booking_date: booking.booking_date,
+          shift_type: booking.shift_type,
+          total_cost: booking.total_cost,
+          booking_source: booking.booking_source,
           status: 'Completed',
+          booked_at: booking.booked_at,
+          created_at: booking.created_at,
           updated_at: new Date(),
         };
       })
@@ -691,12 +826,14 @@ export const completeBooking = async (req, res) => {
   }
 };
 
-// Update booking status
-export const updateBookingStatus = async (req, res) => {
+// Update booking status (for non-Bot bookings - no user notification)
+export const updateBookingStatusLocal = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const { booking_id, status } = req.body;
-    const { property_id } = req.property;
+    
+    // Get property_id from either property or owner token
+    const property_id = await getPropertyId(req);
 
     // Validate required fields
     if (!booking_id || !status) {
@@ -713,9 +850,120 @@ export const updateBookingStatus = async (req, res) => {
       });
     }
 
+    // Build where clause for finding booking
+    let whereClause = { booking_id };
+    
+    if (property_id) {
+      // Specific property
+      whereClause.property_id = property_id;
+    } else if (req.owner) {
+      // Owner token - verify they own the property for this booking
+      const ownerPropertyIds = await getOwnerPropertyIds(req.owner.owner_id);
+      if (ownerPropertyIds.length === 0) {
+        await transaction.rollback();
+        return res.status(403).json({ error: 'No properties found for this owner' });
+      }
+      whereClause.property_id = ownerPropertyIds;
+    }
+
     // Find booking
     const booking = await Booking.findOne({
-      where: { booking_id, property_id },
+      where: whereClause,
+      include: [
+        {
+          model: User,
+          attributes: ['name', 'phone_number', 'cnic', 'email'],
+          required: false,
+        },
+      ],
+      transaction,
+    });
+
+    if (!booking) {
+      await transaction.rollback();
+      return res.status(404).json({ error: 'Booking not found or not associated with this property' });
+    }
+
+    // Update status
+    await booking.update(
+      { status, updated_at: new Date() },
+      { transaction }
+    );
+
+    await transaction.commit();
+
+    // Return updated booking with user details
+    res.status(200).json({
+      message: `Booking status updated to ${status} successfully`,
+      booking: {
+        booking_id: booking.booking_id,
+        user_id: booking.user_id,
+        user_name: booking.User?.name || null,
+        user_phone_number: booking.User?.phone_number || null,
+        user_cnic: booking.User?.cnic || null,
+        user_email: booking.User?.email || null,
+        property_id: booking.property_id,
+        booking_date: booking.booking_date,
+        shift_type: booking.shift_type,
+        total_cost: booking.total_cost,
+        booking_source: booking.booking_source,
+        status: booking.status,
+        payment_screenshot_url: booking.payment_screenshot_url,
+        booked_at: booking.booked_at,
+        created_at: booking.created_at,
+        updated_at: booking.updated_at,
+      },
+    });
+  } catch (error) {
+    await transaction.rollback();
+    console.error('Error updating booking status:', error);
+    res.status(500).json({ error: 'Failed to update booking status', details: error.message });
+  }
+};
+
+// Update booking status
+export const updateBookingStatus = async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    const { booking_id, status } = req.body;
+    
+    // Get property_id from either property or owner token
+    const property_id = await getPropertyId(req);
+
+    // Validate required fields
+    if (!booking_id || !status) {
+      await transaction.rollback();
+      return res.status(400).json({ error: 'Missing required fields: booking_id, status' });
+    }
+
+    // Validate status
+    const validStatuses = ['Pending', 'Confirmed', 'Cancelled', 'Completed'];
+    if (!validStatuses.includes(status)) {
+      await transaction.rollback();
+      return res.status(400).json({ 
+        error: 'Invalid status. Must be one of: Pending, Confirmed, Cancelled, Completed' 
+      });
+    }
+
+    // Build where clause for finding booking
+    let whereClause = { booking_id };
+    
+    if (property_id) {
+      // Specific property
+      whereClause.property_id = property_id;
+    } else if (req.owner) {
+      // Owner token - verify they own the property for this booking
+      const ownerPropertyIds = await getOwnerPropertyIds(req.owner.owner_id);
+      if (ownerPropertyIds.length === 0) {
+        await transaction.rollback();
+        return res.status(403).json({ error: 'No properties found for this owner' });
+      }
+      whereClause.property_id = ownerPropertyIds;
+    }
+
+    // Find booking
+    const booking = await Booking.findOne({
+      where: whereClause,
       include: [
         {
           model: User,

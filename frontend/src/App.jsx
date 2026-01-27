@@ -9,6 +9,8 @@ import AdminLogin from "./pages/login/login.jsx";
 import Dashboard from "./pages/dashboard/dashboard.jsx";
 import Bookings from "./pages/bookings/bookings.jsx";
 import AddBooking from "./pages/add-booking/add-booking.jsx";
+import OwnerDashboard from "./pages/owner-dashboard/OwnerDashboard.jsx";
+import AdminDashboard from "./pages/admin-dashboard/AdminDashboard.jsx";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import {jwtDecode} from "jwt-decode"; // ✅ Needed for token validation
@@ -29,7 +31,9 @@ function App() {
   };
 
   const hasUserToken = isTokenValid("token");
-  const hasAdminToken = isTokenValid("propertyToken");
+  const hasPropertyToken = isTokenValid("propertyToken");
+  const hasOwnerToken = isTokenValid("ownerToken");
+  const hasAdminToken = isTokenValid("adminToken");
 
   return (
     <Routes>
@@ -39,8 +43,12 @@ function App() {
         element={
           hasUserToken ? (
             <Navigate to="/chat" />
-          ) : hasAdminToken ? (
+          ) : hasPropertyToken ? (
             <Navigate to="/dashboard" />
+          ) : hasOwnerToken ? (
+            <Navigate to="/owner-dashboard" />
+          ) : hasAdminToken ? (
+            <Navigate to="/admin-dashboard" />
           ) : (
             <Navigate to="/login" />
           )
@@ -53,12 +61,16 @@ function App() {
         element={hasUserToken ? <Navigate to="/chat" /> : <UserLogin />}
       />
       <Route
+        path="/user-login"
+        element={hasUserToken ? <Navigate to="/chat" /> : <UserLogin />}
+      />
+      <Route
         path="/register"
         element={hasUserToken ? <Navigate to="/chat" /> : <UserSignup />}
       />
       <Route
         path="/admin-login"
-        element={hasAdminToken ? <Navigate to="/dashboard" /> : <AdminLogin />}
+        element={hasPropertyToken ? <Navigate to="/dashboard" /> : <AdminLogin />}
       />
 
       {/* ---------- USER PROTECTED ROUTES ---------- */}
@@ -71,7 +83,7 @@ function App() {
         }
       />
 
-      {/* ---------- ADMIN PROTECTED ROUTES ---------- */}
+      {/* ---------- PROPERTY PROTECTED ROUTES ---------- */}
       <Route
         path="/dashboard"
         element={
@@ -93,6 +105,26 @@ function App() {
         element={
           <ProtectedRoute tokenKey="propertyToken" redirectTo="/admin-login">
             <AddBooking />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* ---------- OWNER PROTECTED ROUTES ---------- */}
+      <Route
+        path="/owner-dashboard"
+        element={
+          <ProtectedRoute tokenKey="ownerToken" redirectTo="/admin-login">
+            <OwnerDashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* ---------- ADMIN PROTECTED ROUTES ---------- */}
+      <Route
+        path="/admin-dashboard"
+        element={
+          <ProtectedRoute tokenKey="adminToken" redirectTo="/admin-login">
+            <AdminDashboard />
           </ProtectedRoute>
         }
       />

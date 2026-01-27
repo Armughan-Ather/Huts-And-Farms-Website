@@ -5,10 +5,10 @@ import  uploadFiles  from '../middlewares/upload.js';
 const router = express.Router();
 router.route('/').get(verifyPropertyToken,getProperty);
 router.post('/add', uploadFiles, addProperty);
-router.route('/edit').post(editProperty);
-router.route('/edit/pricing').post(editPropertyPricing);
-router.route('/edit/amenities').post(editPropertyAmenities);
-router.delete('/delete/media', deletePropertyMedia);
-router.post('/upload/media', uploadFiles, uploadPropertyMedia);
+router.route('/edit').post(verifyPropertyToken, editProperty);
+router.route('/edit/pricing').post(verifyPropertyToken, editPropertyPricing);
+router.route('/edit/amenities').post(verifyPropertyToken, editPropertyAmenities);
+router.delete('/delete/media', verifyPropertyToken, deletePropertyMedia);
+router.post('/upload/media', verifyPropertyToken, uploadFiles, uploadPropertyMedia);
 router.route('/login').post(loginProperty)
 export default router;

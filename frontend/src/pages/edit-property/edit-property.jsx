@@ -94,12 +94,19 @@ const EditPropertyModal = ({ isOpen, onClose, propertyData, onPropertyUpdated })
         return;
       }
 
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
       
       // Only send fields that have values (excluding empty password)
       const updateData = {};
+      
+      // Always include property_id for owner access
+      updateData.property_id = formData.property_id;
+      
       Object.keys(formData).forEach(key => {
-        if (key === 'password') {
+        if (key === 'property_id') {
+          // Already added above
+          return;
+        } else if (key === 'password') {
           // Only include password if it's not empty
           if (formData[key] && formData[key].toString().trim() !== '') {
             updateData[key] = formData[key];

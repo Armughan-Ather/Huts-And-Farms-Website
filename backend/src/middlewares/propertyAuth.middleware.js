@@ -16,22 +16,29 @@ export const verifyPropertyToken = async (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
 
-    // Check if token is for a property
-    if (decoded.type !== 'property') {
-      return res.status(401).json({ error: 'Invalid token. Not authorized as a property.' });
-    }
+    // Check if token is for a property or owner
+    if (decoded.type === 'property') {
+      // Validate property exists
+      const property = await Property.findOne({ where: { property_id: decoded.property_id } });
+      if (!property) {
+        return res.status(404).json({ error: 'Property not found.' });
+      }
 
-    // Validate property exists
-    const property = await Property.findOne({ where: { property_id: decoded.property_id } });
-    if (!property) {
-      return res.status(404).json({ error: 'Property not found.' });
+      // Attach property details to request
+      req.property = {
+        property_id: property.property_id,
+        username: property.username,
+      };
+    } else if (decoded.type === 'owner') {
+      // For owner tokens, we need to get the property from the request or URL
+      // For now, we'll allow owner access and handle property validation in the controller
+      req.owner = {
+        owner_id: decoded.owner_id,
+        username: decoded.username,
+      };
+    } else {
+      return res.status(401).json({ error: 'Invalid token. Not authorized as a property or owner.' });
     }
-
-    // Attach property details to request
-    req.property = {
-      property_id: property.property_id,
-      username: property.username,
-    };
 
     next();
   } catch (error) {

@@ -48,6 +48,7 @@ import PropertyImageModel from './propertyImage.model.js';
 import PropertyVideoModel from './propertyVideo.model.js';
 import MessageModel from './message.model.js';
 import SessionModel from './session.model.js';
+import AdminModel from './admin.model.js';
 
 // Initialize models
 const db = {};
@@ -66,6 +67,7 @@ db.PropertyImage = PropertyImageModel(sequelize, DataTypes);
 db.PropertyVideo = PropertyVideoModel(sequelize, DataTypes);
 db.Message = MessageModel(sequelize, DataTypes);
 db.Session = SessionModel(sequelize, DataTypes);
+db.Admin = AdminModel(sequelize, DataTypes);
 
 // Define associations
 db.User.associate = (models) => {
