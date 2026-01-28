@@ -371,6 +371,47 @@
   display: block;
 }
 
+/* Completely disable the dark overlay that appears on video hover */
+.user-chat-page-video::-webkit-media-controls-overlay-enclosure {
+  display: none !important;
+}
+
+.user-chat-page-video::-webkit-media-controls-enclosure {
+  background: transparent !important;
+}
+
+.user-chat-page-video::-webkit-media-controls-panel {
+  background: transparent !important;
+}
+
+/* Force video to maintain normal brightness */
+.user-chat-page-video {
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+/* Remove any hover effects that might darken the video */
+.user-chat-page-video:hover {
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+/* Ensure fullscreen mode doesn't have dark overlay */
+.user-chat-page-video:fullscreen {
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+.user-chat-page-video:-webkit-full-screen {
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+.user-chat-page-video:-moz-full-screen {
+  filter: none !important;
+  opacity: 1 !important;
+}
+
 /* Ensure images in bubbles don't overflow */
 .user-chat-page-bubble img {
   max-width: 100%;

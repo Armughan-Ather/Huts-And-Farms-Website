@@ -69,13 +69,19 @@ useLayoutEffect(() => {
   const extractBotText = (content) => {
   if (!content) return "";
 
+  // PRIORITY: Handle direct string responses (new clean format from fixed backend)
+  if (typeof content === "string" && !content.trim().startsWith("[") && !content.trim().startsWith("{")) {
+    return content;
+  }
+
   // Handle array format with objects containing type and text properties
   if (Array.isArray(content)) {
-    return content
+    const result = content
       .filter(item => item && item.type === "text" && item.text)
       .map(item => item.text)
       .filter(text => !text.toLowerCase().includes("attachment")) // Filter out attachment references
       .join("<br>");
+    return result;
   }
 
   // Handle Python-style string that looks like: [{'type': 'text', 'text': '...', 'extras': {...}}]
@@ -232,8 +238,6 @@ useLayoutEffect(() => {
       { headers: { "Content-Type": "application/json" } }
     );
 
-    console.log("🔍 [DEBUG] Chat History API Response:", response.data);
-
     const normalizedMessages = (response.data || []).map(msg => {
       let timestamp = msg.timestamp;
       if (timestamp && !/Z|[+-]\d\d:?(\d\d)?$/.test(timestamp)) {
@@ -243,28 +247,30 @@ useLayoutEffect(() => {
       // Clean media URLs for bot messages
       let cleanMediaUrls = msg.media_urls || {};
       if (msg.sender === "bot" && msg.media_urls) {
-        console.log("🔍 [DEBUG] Original bot media_urls:", msg.media_urls);
-        
         cleanMediaUrls = {};
         
         // Clean images array
         if (msg.media_urls.images && Array.isArray(msg.media_urls.images)) {
-          console.log("🔍 [DEBUG] Original images array:", msg.media_urls.images);
-          
           cleanMediaUrls.images = msg.media_urls.images
             .map(url => {
               if (typeof url === 'string') {
                 // Remove any trailing text that might be appended to URLs
                 let cleanUrl = url.trim();
                 
-                // Remove common text contamination patterns - be more aggressive
-                cleanUrl = cleanUrl.replace(/\/n\/n.*$/i, ''); // Remove /n/nAnd type suffixes (case insensitive)
-                cleanUrl = cleanUrl.replace(/\\n\\n.*$/i, ''); // Remove \n\nAnd type suffixes
-                cleanUrl = cleanUrl.replace(/\s+.*$/, ''); // Remove any text after whitespace
-                cleanUrl = cleanUrl.replace(/\/n.*$/i, ''); // Remove /n and everything after
-                cleanUrl = cleanUrl.replace(/\\n.*$/i, ''); // Remove \n and everything after
-                cleanUrl = cleanUrl.replace(/\?.*and.*$/i, ''); // Remove query params with 'and'
-                cleanUrl = cleanUrl.replace(/[^a-zA-Z0-9:\/\.\-_\?&=].*$/, ''); // Remove non-URL characters and everything after
+                // First, try to extract the clean URL up to the file extension if it exists
+                const imageExtensionMatch = cleanUrl.match(/(.*\.(jpg|jpeg|png|gif|webp))/i);
+                if (imageExtensionMatch) {
+                  cleanUrl = imageExtensionMatch[1];
+                } else {
+                  // If no extension found, apply text cleaning patterns
+                  cleanUrl = cleanUrl.replace(/\\n\\n.*$/i, ''); // Remove \n\nAnd type suffixes
+                  cleanUrl = cleanUrl.replace(/\/n\/n.*$/i, ''); // Remove /n/nAnd type suffixes (case insensitive)
+                  cleanUrl = cleanUrl.replace(/\\n\d+.*$/i, ''); // Remove \n2, \n3, etc.
+                  cleanUrl = cleanUrl.replace(/\/n\d+.*$/i, ''); // Remove /n2, /n3, etc.
+                  cleanUrl = cleanUrl.replace(/\s+.*$/, ''); // Remove any text after whitespace
+                  cleanUrl = cleanUrl.replace(/\?.*and.*$/i, ''); // Remove query params with 'and'
+                  cleanUrl = cleanUrl.replace(/[^a-zA-Z0-9:\/\.\-_\?&=].*$/, ''); // Remove non-URL characters and everything after
+                }
                 
                 // Ensure URL ends with proper image extension and has filename
                 if (cleanUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
@@ -299,14 +305,10 @@ useLayoutEffect(() => {
             })
             .filter(url => url !== null) // Remove invalid URLs
             .filter((url, index, array) => array.indexOf(url) === index); // Remove duplicates
-          
-          console.log("🔍 [DEBUG] Cleaned images array:", cleanMediaUrls.images);
         }
         
         // Clean videos array
         if (msg.media_urls.videos && Array.isArray(msg.media_urls.videos)) {
-          console.log("🔍 [DEBUG] Original videos array:", msg.media_urls.videos);
-          
           cleanMediaUrls.videos = msg.media_urls.videos
             .map(url => {
               if (typeof url === 'string') {
@@ -345,11 +347,7 @@ useLayoutEffect(() => {
               return null;
             })
             .filter(url => url !== null); // Remove invalid URLs
-          
-          console.log("🔍 [DEBUG] Cleaned videos array:", cleanMediaUrls.videos);
         }
-        
-        console.log("🔍 [DEBUG] Final cleaned media_urls:", cleanMediaUrls);
       }
 
       return {
@@ -394,33 +392,35 @@ useLayoutEffect(() => {
         { headers: { "Content-Type": "application/json" } }
       );
 
-      console.log("🔍 [DEBUG] Send Message API Response:", response.data);
+      console.log("Bot response:", response.data.bot_response);
 
       if (response.data.status === "success") {
   // Clean and validate media URLs
   const cleanMediaUrls = {};
   
   if (response.data.media_urls) {
-    console.log("🔍 [DEBUG] Original send-message media_urls:", response.data.media_urls);
-    
     // Clean images array
     if (response.data.media_urls.images && Array.isArray(response.data.media_urls.images)) {
-      console.log("🔍 [DEBUG] Original send-message images:", response.data.media_urls.images);
-      
       cleanMediaUrls.images = response.data.media_urls.images
         .map(url => {
           if (typeof url === 'string') {
             // Remove any trailing text that might be appended to URLs
             let cleanUrl = url.trim();
             
-            // Remove common text contamination patterns - be more aggressive
-            cleanUrl = cleanUrl.replace(/\/n\/n.*$/i, ''); // Remove /n/nAnd type suffixes (case insensitive)
-            cleanUrl = cleanUrl.replace(/\\n\\n.*$/i, ''); // Remove \n\nAnd type suffixes
-            cleanUrl = cleanUrl.replace(/\s+.*$/, ''); // Remove any text after whitespace
-            cleanUrl = cleanUrl.replace(/\/n.*$/i, ''); // Remove /n and everything after
-            cleanUrl = cleanUrl.replace(/\\n.*$/i, ''); // Remove \n and everything after
-            cleanUrl = cleanUrl.replace(/\?.*and.*$/i, ''); // Remove query params with 'and'
-            cleanUrl = cleanUrl.replace(/[^a-zA-Z0-9:\/\.\-_\?&=].*$/, ''); // Remove non-URL characters and everything after
+            // First, try to extract the clean URL up to the file extension if it exists
+            const imageExtensionMatch = cleanUrl.match(/(.*\.(jpg|jpeg|png|gif|webp))/i);
+            if (imageExtensionMatch) {
+              cleanUrl = imageExtensionMatch[1];
+            } else {
+              // If no extension found, apply text cleaning patterns
+              cleanUrl = cleanUrl.replace(/\\n\\n.*$/i, ''); // Remove \n\nAnd type suffixes
+              cleanUrl = cleanUrl.replace(/\/n\/n.*$/i, ''); // Remove /n/nAnd type suffixes (case insensitive)
+              cleanUrl = cleanUrl.replace(/\\n\d+.*$/i, ''); // Remove \n2, \n3, etc.
+              cleanUrl = cleanUrl.replace(/\/n\d+.*$/i, ''); // Remove /n2, /n3, etc.
+              cleanUrl = cleanUrl.replace(/\s+.*$/, ''); // Remove any text after whitespace
+              cleanUrl = cleanUrl.replace(/\?.*and.*$/i, ''); // Remove query params with 'and'
+              cleanUrl = cleanUrl.replace(/[^a-zA-Z0-9:\/\.\-_\?&=].*$/, ''); // Remove non-URL characters and everything after
+            }
             
             // Ensure URL ends with proper image extension and has filename
             if (cleanUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
@@ -455,14 +455,10 @@ useLayoutEffect(() => {
         })
         .filter(url => url !== null) // Remove invalid URLs
         .filter((url, index, array) => array.indexOf(url) === index); // Remove duplicates
-      
-      console.log("🔍 [DEBUG] Cleaned send-message images:", cleanMediaUrls.images);
     }
     
     // Clean videos array
     if (response.data.media_urls.videos && Array.isArray(response.data.media_urls.videos)) {
-      console.log("🔍 [DEBUG] Original send-message videos:", response.data.media_urls.videos);
-      
       cleanMediaUrls.videos = response.data.media_urls.videos
         .map(url => {
           if (typeof url === 'string') {
@@ -511,11 +507,7 @@ useLayoutEffect(() => {
         })
         .filter(url => url !== null) // Remove invalid URLs
         .filter((url, index, array) => array.indexOf(url) === index); // Remove duplicates
-      
-      console.log("🔍 [DEBUG] Cleaned send-message videos:", cleanMediaUrls.videos);
     }
-    
-    console.log("🔍 [DEBUG] Final send-message cleaned media_urls:", cleanMediaUrls);
   }
 
   const botMsg = {
@@ -525,8 +517,6 @@ useLayoutEffect(() => {
     timestamp: new Date().toISOString(),
   };
   
-  console.log("🔍 [DEBUG] Final bot message object:", botMsg);
-
   setMessages((prev) => [...prev, botMsg]);
 } else {
   setError(response.data.error || "Failed to send message");
@@ -841,6 +831,22 @@ useLayoutEffect(() => {
                             key={idx}
                             src={vid}
                             controls
+                            preload="metadata"
+                            onMouseEnter={(e) => {
+                              // Prevent any dark overlay on hover
+                              e.target.style.filter = 'none';
+                              e.target.style.opacity = '1';
+                            }}
+                            onMouseLeave={(e) => {
+                              // Ensure video stays bright when cursor leaves
+                              e.target.style.filter = 'none';
+                              e.target.style.opacity = '1';
+                            }}
+                            onLoadedMetadata={(e) => {
+                              // Ensure video is bright from the start
+                              e.target.style.filter = 'none';
+                              e.target.style.opacity = '1';
+                            }}
                             className="user-chat-page-video"
                           />
                         ))}
