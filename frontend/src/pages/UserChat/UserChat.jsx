@@ -20,6 +20,8 @@ function UserChat() {
   const [error, setError] = useState("");
   const [selectedImage, setSelectedImage] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const [userId, setUserId] = useState(null);
@@ -50,6 +52,42 @@ const handleLogout = () => {
   setInputMessage("");
   // Force page reload to avoid React routing conflicts
   window.location.href = '/login';
+};
+
+const handleDeleteChat = async () => {
+  if (!userId) return;
+  
+  setIsDeleting(true);
+  try {
+    const token = localStorage.getItem('token');
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+    
+    const response = await axios.post(
+      `${backendUrl}/api/messages/delete`,
+      { user_id: userId },
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    if (response.data.success) {
+      // Clear messages from UI
+      setMessages([]);
+      setShowDeleteConfirm(false);
+      console.log(`Deleted ${response.data.deletedCount} messages`);
+    } else {
+      console.error('Failed to delete messages:', response.data.error);
+      setError('Failed to delete chat history. Please try again.');
+    }
+  } catch (error) {
+    console.error('Error deleting chat:', error);
+    setError('Failed to delete chat history. Please try again.');
+  } finally {
+    setIsDeleting(false);
+  }
 };
 useLayoutEffect(() => {
   if (messages.length > 0) {
@@ -769,6 +807,14 @@ useLayoutEffect(() => {
                   <i className="fas fa-sync-alt"></i>
                 </button>
                 
+                <button 
+                  className="user-chat-page-icon-btn user-chat-page-delete-btn" 
+                  onClick={() => setShowDeleteConfirm(true)} 
+                  title="Delete Chat History"
+                >
+                  <i className="fas fa-trash-alt"></i>
+                </button>
+                
   <button 
     className="user-chat-page-icon-btn user-chat-page-logout-btn" 
     onClick={handleLogout} 
@@ -979,6 +1025,59 @@ useLayoutEffect(() => {
               <i className="fas fa-download"></i>
               <span>Download Image</span>
             </a>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="user-chat-page-delete-overlay" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="user-chat-page-delete-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="user-chat-page-delete-modal-header">
+              <h3>Delete Chat History</h3>
+              <button 
+                className="user-chat-page-modal-close" 
+                onClick={() => setShowDeleteConfirm(false)}
+                aria-label="Close modal"
+              >
+                ×
+              </button>
+            </div>
+            <div className="user-chat-page-delete-modal-body">
+              <div className="user-chat-page-delete-warning">
+                <i className="fas fa-exclamation-triangle"></i>
+                <p>Are you sure you want to delete all your chat history?</p>
+                <p className="user-chat-page-delete-warning-text">
+                  This action cannot be undone. All your messages will be permanently deleted.
+                </p>
+              </div>
+            </div>
+            <div className="user-chat-page-delete-modal-footer">
+              <button 
+                className="user-chat-page-delete-cancel-btn" 
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+              <button 
+                className="user-chat-page-delete-confirm-btn" 
+                onClick={handleDeleteChat}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin"></i>
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-trash-alt"></i>
+                    Delete All Messages
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
