@@ -11,21 +11,30 @@ export default (sequelize) => {
     user_id: {
       type: DataTypes.UUID,
       allowNull: false,
+      references: {
+        model: 'users',
+        key: 'user_id'
+      }
     },
     sender: {
-      type: DataTypes.STRING,
+      type: DataTypes.STRING(100),
+      allowNull: true,
     },
     content: {
       type: DataTypes.TEXT,
+      allowNull: true,
     },
     timestamp: {
       type: DataTypes.DATE,
+      allowNull: true,
     },
     whatsapp_message_id: {
-      type: DataTypes.STRING,
+      type: DataTypes.STRING(1000),
+      allowNull: true,
     },
     query_embedding: {
-      type: 'vector', // Custom type to match database's vector type
+      type: 'vector', // Custom type for vector embeddings
+      allowNull: true,
     },
   }, {
     tableName: 'messages',
