@@ -36,6 +36,19 @@ export default (sequelize) => {
       type: 'vector', // Custom type for vector embeddings
       allowNull: true,
     },
+    structured_response: {
+      type: DataTypes.JSON,
+      allowNull: true,
+    },
+    form_data: {
+      type: DataTypes.JSON,
+      allowNull: true,
+    },
+    is_form_submission: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+      allowNull: true,
+    },
   }, {
     tableName: 'messages',
     timestamps: false,

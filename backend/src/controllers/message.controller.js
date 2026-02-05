@@ -1,6 +1,6 @@
 import db from '../models/index.js';
 
-const { Message } = db;
+const { Message, Session } = db;
 
 // Delete all messages for a specific user
 export const deleteUserMessages = async (req, res) => {
@@ -15,25 +15,35 @@ export const deleteUserMessages = async (req, res) => {
     }
 
     // Delete all messages for the user
-    const deletedCount = await Message.destroy({
+    const deletedMessagesCount = await Message.destroy({
       where: {
         user_id: user_id
       }
     });
 
-    console.log(`Deleted ${deletedCount} messages for user ${user_id}`);
+    // Delete session entry for the user
+    const deletedSessionsCount = await Session.destroy({
+      where: {
+        user_id: user_id
+      }
+    });
+
+    console.log(`Deleted ${deletedMessagesCount} messages and ${deletedSessionsCount} sessions for user ${user_id}`);
 
     return res.status(200).json({
       success: true,
-      message: `Successfully deleted ${deletedCount} messages`,
-      deletedCount: deletedCount
+      message: `Successfully deleted ${deletedMessagesCount} messages and ${deletedSessionsCount} sessions`,
+      deletedCount: {
+        messages: deletedMessagesCount,
+        sessions: deletedSessionsCount
+      }
     });
 
   } catch (error) {
-    console.error('Error deleting user messages:', error);
+    console.error('Error deleting user messages and sessions:', error);
     return res.status(500).json({
       success: false,
-      error: 'Failed to delete messages',
+      error: 'Failed to delete messages and sessions',
       details: error.message
     });
   }
