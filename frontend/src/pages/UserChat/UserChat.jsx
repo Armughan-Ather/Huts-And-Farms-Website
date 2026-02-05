@@ -11,6 +11,7 @@ import {
   MDBSpinner 
 } from "mdb-react-ui-kit";
 import { useNavigate } from "react-router-dom";
+import ChatResponseRenderer from "../../components/ChatResponseRenderer/ChatResponseRenderer";
 function UserChat() {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
@@ -22,6 +23,8 @@ function UserChat() {
   const [showImageModal, setShowImageModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [hasActiveForm, setHasActiveForm] = useState(false); // Track if there's an active form
+  const [sessionData, setSessionData] = useState(null); // Store session data for pre-filling forms
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const [userId, setUserId] = useState(null);
@@ -37,8 +40,24 @@ function UserChat() {
   }, []);
 
   useEffect(() => {
-    if (userId) loadChatHistory();
+    if (userId) {
+      loadChatHistory();
+      fetchSessionData();
+    }
   }, [userId]);
+
+  const fetchSessionData = async () => {
+    try {
+      const response = await axios.get(
+        `${import.meta.env.VITE_FAST_API_BASE}/api/web-chat/session-info/${userId}`
+      );
+      if (response.data.status === 'active') {
+        setSessionData(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch session data:', error);
+    }
+  };
 
 //   useEffect(() => {
 //     scrollToBottom();
@@ -292,57 +311,25 @@ useLayoutEffect(() => {
           cleanMediaUrls.images = msg.media_urls.images
             .map(url => {
               if (typeof url === 'string') {
-                // Remove any trailing text that might be appended to URLs
                 let cleanUrl = url.trim();
-                
-                // First, try to extract the clean URL up to the file extension if it exists
                 const imageExtensionMatch = cleanUrl.match(/(.*\.(jpg|jpeg|png|gif|webp))/i);
                 if (imageExtensionMatch) {
                   cleanUrl = imageExtensionMatch[1];
-                } else {
-                  // If no extension found, apply text cleaning patterns
-                  cleanUrl = cleanUrl.replace(/\\n\\n.*$/i, ''); // Remove \n\nAnd type suffixes
-                  cleanUrl = cleanUrl.replace(/\/n\/n.*$/i, ''); // Remove /n/nAnd type suffixes (case insensitive)
-                  cleanUrl = cleanUrl.replace(/\\n\d+.*$/i, ''); // Remove \n2, \n3, etc.
-                  cleanUrl = cleanUrl.replace(/\/n\d+.*$/i, ''); // Remove /n2, /n3, etc.
-                  cleanUrl = cleanUrl.replace(/\s+.*$/, ''); // Remove any text after whitespace
-                  cleanUrl = cleanUrl.replace(/\?.*and.*$/i, ''); // Remove query params with 'and'
-                  cleanUrl = cleanUrl.replace(/[^a-zA-Z0-9:\/\.\-_\?&=].*$/, ''); // Remove non-URL characters and everything after
                 }
-                
-                // Ensure URL ends with proper image extension and has filename
-                if (cleanUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
-                  // URL already has proper extension
-                } else if (cleanUrl.match(/\.(jpg|jpeg|png|gif|webp)/i)) {
-                  // Extract URL up to the image extension
-                  const match = cleanUrl.match(/(.*\.(jpg|jpeg|png|gif|webp))/i);
-                  if (match) {
-                    cleanUrl = match[1];
-                  }
-                } else {
-                  // URL doesn't have proper extension, likely corrupted
-                  console.warn('Image URL without proper extension:', cleanUrl);
-                  return null;
-                }
-                
-                // Validate that it's a proper URL and has filename
                 try {
                   new URL(cleanUrl);
-                  // Check if URL ends with just /images or /videos (invalid)
                   if (cleanUrl.endsWith('/images') || cleanUrl.endsWith('/videos')) {
-                    console.warn('Invalid URL ending with folder name:', cleanUrl);
                     return null;
                   }
                   return cleanUrl;
                 } catch (e) {
-                  console.error('Invalid image URL in history:', url, 'cleaned to:', cleanUrl);
                   return null;
                 }
               }
               return null;
             })
-            .filter(url => url !== null) // Remove invalid URLs
-            .filter((url, index, array) => array.indexOf(url) === index); // Remove duplicates
+            .filter(url => url !== null)
+            .filter((url, index, array) => array.indexOf(url) === index);
         }
         
         // Clean videos array
@@ -350,41 +337,21 @@ useLayoutEffect(() => {
           cleanMediaUrls.videos = msg.media_urls.videos
             .map(url => {
               if (typeof url === 'string') {
-                // Remove any trailing text that might be appended to URLs
                 let cleanUrl = url.trim();
-                
-                // Remove common text contamination patterns - be more aggressive
-                cleanUrl = cleanUrl.replace(/\/n\/n.*$/i, ''); // Remove /n/nAnd type suffixes (case insensitive)
-                cleanUrl = cleanUrl.replace(/\\n\\n.*$/i, ''); // Remove \n\nAnd type suffixes
-                cleanUrl = cleanUrl.replace(/\s+.*$/, ''); // Remove any text after whitespace
-                cleanUrl = cleanUrl.replace(/\/n.*$/i, ''); // Remove /n and everything after
-                cleanUrl = cleanUrl.replace(/\\n.*$/i, ''); // Remove \n and everything after
-                cleanUrl = cleanUrl.replace(/\?.*and.*$/i, ''); // Remove query params with 'and'
-                cleanUrl = cleanUrl.replace(/[^a-zA-Z0-9:\/\.\-_\?&=].*$/, ''); // Remove non-URL characters and everything after
-                
-                // Ensure URL ends with proper video extension
-                if (cleanUrl.match(/\.(mp4|avi|mov|wmv|flv|webm|mkv)$/i)) {
-                  // URL already has proper extension
-                } else if (cleanUrl.match(/\.(mp4|avi|mov|wmv|flv|webm|mkv)/i)) {
-                  // Extract URL up to the video extension
-                  const match = cleanUrl.match(/(.*\.(mp4|avi|mov|wmv|flv|webm|mkv))/i);
-                  if (match) {
-                    cleanUrl = match[1];
-                  }
+                const match = cleanUrl.match(/(.*\.(mp4|avi|mov|wmv|flv|webm|mkv))/i);
+                if (match) {
+                  cleanUrl = match[1];
                 }
-                
-                // Validate that it's a proper URL
                 try {
                   new URL(cleanUrl);
                   return cleanUrl;
                 } catch (e) {
-                  console.error('Invalid video URL in history:', url, 'cleaned to:', cleanUrl);
                   return null;
                 }
               }
               return null;
             })
-            .filter(url => url !== null); // Remove invalid URLs
+            .filter(url => url !== null);
         }
       }
 
@@ -395,12 +362,22 @@ useLayoutEffect(() => {
             ? extractBotText(msg.content)
             : msg.content,
         media_urls: cleanMediaUrls,
+        structured_responses: msg.structured_response || null, // Add structured responses from history
         timestamp
       };
     });
 
     setMessages(normalizedMessages);
     setError("");
+    
+    // Check if the last bot message has questions (active form)
+    const lastBotMessage = normalizedMessages.filter(m => m.sender === 'bot').pop();
+    if (lastBotMessage?.structured_responses) {
+      const hasQuestions = lastBotMessage.structured_responses.some(r => r.type === 'questions');
+      setHasActiveForm(hasQuestions);
+    } else {
+      setHasActiveForm(false);
+    }
   } catch (error) {
     console.error("Failed to load history:", error);
     setError("Failed to load chat history");
@@ -430,135 +407,89 @@ useLayoutEffect(() => {
         { headers: { "Content-Type": "application/json" } }
       );
 
-      console.log("Bot response:", response.data.bot_response);
+      console.log("Bot response:", response.data);
 
       if (response.data.status === "success") {
-  // Clean and validate media URLs
-  const cleanMediaUrls = {};
-  
-  if (response.data.media_urls) {
-    // Clean images array
-    if (response.data.media_urls.images && Array.isArray(response.data.media_urls.images)) {
-      cleanMediaUrls.images = response.data.media_urls.images
-        .map(url => {
-          if (typeof url === 'string') {
-            // Remove any trailing text that might be appended to URLs
-            let cleanUrl = url.trim();
-            
-            // First, try to extract the clean URL up to the file extension if it exists
-            const imageExtensionMatch = cleanUrl.match(/(.*\.(jpg|jpeg|png|gif|webp))/i);
-            if (imageExtensionMatch) {
-              cleanUrl = imageExtensionMatch[1];
-            } else {
-              // If no extension found, apply text cleaning patterns
-              cleanUrl = cleanUrl.replace(/\\n\\n.*$/i, ''); // Remove \n\nAnd type suffixes
-              cleanUrl = cleanUrl.replace(/\/n\/n.*$/i, ''); // Remove /n/nAnd type suffixes (case insensitive)
-              cleanUrl = cleanUrl.replace(/\\n\d+.*$/i, ''); // Remove \n2, \n3, etc.
-              cleanUrl = cleanUrl.replace(/\/n\d+.*$/i, ''); // Remove /n2, /n3, etc.
-              cleanUrl = cleanUrl.replace(/\s+.*$/, ''); // Remove any text after whitespace
-              cleanUrl = cleanUrl.replace(/\?.*and.*$/i, ''); // Remove query params with 'and'
-              cleanUrl = cleanUrl.replace(/[^a-zA-Z0-9:\/\.\-_\?&=].*$/, ''); // Remove non-URL characters and everything after
+        // Check if we have new structured format
+        if (response.data.responses && Array.isArray(response.data.responses)) {
+          // New structured format
+          const botMsg = {
+            sender: "bot",
+            structured_responses: response.data.responses,
+            timestamp: new Date().toISOString(),
+          };
+          setMessages((prev) => [...prev, botMsg]);
+          
+          // Check if response has questions (active form)
+          const hasQuestions = response.data.responses.some(r => r.type === 'questions');
+          setHasActiveForm(hasQuestions);
+        } else {
+          // Legacy format - handle old responses
+          const cleanMediaUrls = {};
+          
+          if (response.data.media_urls) {
+            // Clean images array
+            if (response.data.media_urls.images && Array.isArray(response.data.media_urls.images)) {
+              cleanMediaUrls.images = response.data.media_urls.images
+                .map(url => {
+                  if (typeof url === 'string') {
+                    let cleanUrl = url.trim();
+                    const imageExtensionMatch = cleanUrl.match(/(.*\.(jpg|jpeg|png|gif|webp))/i);
+                    if (imageExtensionMatch) {
+                      cleanUrl = imageExtensionMatch[1];
+                    }
+                    try {
+                      new URL(cleanUrl);
+                      if (cleanUrl.endsWith('/images') || cleanUrl.endsWith('/videos')) {
+                        return null;
+                      }
+                      return cleanUrl;
+                    } catch (e) {
+                      return null;
+                    }
+                  }
+                  return null;
+                })
+                .filter(url => url !== null)
+                .filter((url, index, array) => array.indexOf(url) === index);
             }
             
-            // Ensure URL ends with proper image extension and has filename
-            if (cleanUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
-              // URL already has proper extension
-            } else if (cleanUrl.match(/\.(jpg|jpeg|png|gif|webp)/i)) {
-              // Extract URL up to the image extension
-              const match = cleanUrl.match(/(.*\.(jpg|jpeg|png|gif|webp))/i);
-              if (match) {
-                cleanUrl = match[1];
-              }
-            } else {
-              // URL doesn't have proper extension, likely corrupted
-              console.warn('Image URL without proper extension:', cleanUrl);
-              return null;
-            }
-            
-            // Validate that it's a proper URL and has filename
-            try {
-              new URL(cleanUrl);
-              // Check if URL ends with just /images or /videos (invalid)
-              if (cleanUrl.endsWith('/images') || cleanUrl.endsWith('/videos')) {
-                console.warn('Invalid URL ending with folder name:', cleanUrl);
-                return null;
-              }
-              return cleanUrl;
-            } catch (e) {
-              console.error('Invalid image URL:', url, 'cleaned to:', cleanUrl);
-              return null;
-            }
-          }
-          return null;
-        })
-        .filter(url => url !== null) // Remove invalid URLs
-        .filter((url, index, array) => array.indexOf(url) === index); // Remove duplicates
-    }
-    
-    // Clean videos array
-    if (response.data.media_urls.videos && Array.isArray(response.data.media_urls.videos)) {
-      cleanMediaUrls.videos = response.data.media_urls.videos
-        .map(url => {
-          if (typeof url === 'string') {
-            // Remove any trailing text that might be appended to URLs
-            let cleanUrl = url.trim();
-            
-            // Remove common text contamination patterns - be more aggressive
-            cleanUrl = cleanUrl.replace(/\/n\/n.*$/i, ''); // Remove /n/nAnd type suffixes (case insensitive)
-            cleanUrl = cleanUrl.replace(/\\n\\n.*$/i, ''); // Remove \n\nAnd type suffixes
-            cleanUrl = cleanUrl.replace(/\s+.*$/, ''); // Remove any text after whitespace
-            cleanUrl = cleanUrl.replace(/\/n.*$/i, ''); // Remove /n and everything after
-            cleanUrl = cleanUrl.replace(/\\n.*$/i, ''); // Remove \n and everything after
-            cleanUrl = cleanUrl.replace(/\?.*and.*$/i, ''); // Remove query params with 'and'
-            cleanUrl = cleanUrl.replace(/[^a-zA-Z0-9:\/\.\-_\?&=].*$/, ''); // Remove non-URL characters and everything after
-            
-            // Ensure URL ends with proper video extension and has filename
-            if (cleanUrl.match(/\.(mp4|avi|mov|wmv|flv|webm|mkv)$/i)) {
-              // URL already has proper extension
-            } else if (cleanUrl.match(/\.(mp4|avi|mov|wmv|flv|webm|mkv)/i)) {
-              // Extract URL up to the video extension
-              const match = cleanUrl.match(/(.*\.(mp4|avi|mov|wmv|flv|webm|mkv))/i);
-              if (match) {
-                cleanUrl = match[1];
-              }
-            } else {
-              // URL doesn't have proper extension, likely corrupted
-              console.warn('Video URL without proper extension:', cleanUrl);
-              return null;
-            }
-            
-            // Validate that it's a proper URL and has filename
-            try {
-              new URL(cleanUrl);
-              // Check if URL ends with just /videos or /images (invalid)
-              if (cleanUrl.endsWith('/images') || cleanUrl.endsWith('/videos')) {
-                console.warn('Invalid URL ending with folder name:', cleanUrl);
-                return null;
-              }
-              return cleanUrl;
-            } catch (e) {
-              console.error('Invalid video URL:', url, 'cleaned to:', cleanUrl);
-              return null;
+            // Clean videos array
+            if (response.data.media_urls.videos && Array.isArray(response.data.media_urls.videos)) {
+              cleanMediaUrls.videos = response.data.media_urls.videos
+                .map(url => {
+                  if (typeof url === 'string') {
+                    let cleanUrl = url.trim();
+                    const match = cleanUrl.match(/(.*\.(mp4|avi|mov|wmv|flv|webm|mkv))/i);
+                    if (match) {
+                      cleanUrl = match[1];
+                    }
+                    try {
+                      new URL(cleanUrl);
+                      return cleanUrl;
+                    } catch (e) {
+                      return null;
+                    }
+                  }
+                  return null;
+                })
+                .filter(url => url !== null)
+                .filter((url, index, array) => array.indexOf(url) === index);
             }
           }
-          return null;
-        })
-        .filter(url => url !== null) // Remove invalid URLs
-        .filter((url, index, array) => array.indexOf(url) === index); // Remove duplicates
-    }
-  }
 
-  const botMsg = {
-    sender: "bot",
-    content: extractBotText(response.data.bot_response),
-    media_urls: cleanMediaUrls,
-    timestamp: new Date().toISOString(),
-  };
-  
-  setMessages((prev) => [...prev, botMsg]);
-} else {
-  setError(response.data.error || "Failed to send message");
-}
+          const botMsg = {
+            sender: "bot",
+            content: extractBotText(response.data.bot_response),
+            media_urls: cleanMediaUrls,
+            timestamp: new Date().toISOString(),
+          };
+          
+          setMessages((prev) => [...prev, botMsg]);
+        }
+      } else {
+        setError(response.data.error || "Failed to send message");
+      }
     } catch (error) {
       console.error("Send message failed:", error);
       setError("Failed to send message. Please try again.");
@@ -855,47 +786,95 @@ useLayoutEffect(() => {
                         </div>
                       )}
                       <div className="user-chat-page-bubble">
-                        <span
-                          className="user-chat-page-message-content"
-                          dangerouslySetInnerHTML={{
-                            __html: msg.sender === "bot" ? formatBotMessage(msg.content) : msg.content,
-                          }}
-                        />
+                        {/* Check if message has structured responses */}
+                        {msg.structured_responses ? (
+                          <ChatResponseRenderer 
+                            responses={msg.structured_responses}
+                            onImageClick={handleImageClick}
+                            sessionData={sessionData}
+                            onQuestionSubmit={(responseText) => {
+                              // Disable the form
+                              setHasActiveForm(false);
+                              
+                              // Send directly without showing in input box
+                              const userMsg = {
+                                sender: "user",
+                                content: responseText,
+                                timestamp: new Date().toISOString(),
+                              };
+                              
+                              setMessages((prev) => [...prev, userMsg]);
+                              setIsSending(true);
+                              
+                              // Send to backend
+                              axios.post(
+                                `${import.meta.env.VITE_FAST_API_BASE}/api/web-chat/send-message`,
+                                { user_id: userId, message: responseText },
+                                { headers: { "Content-Type": "application/json" } }
+                              ).then(response => {
+                                if (response.data.status === "success") {
+                                  if (response.data.responses && Array.isArray(response.data.responses)) {
+                                    const botMsg = {
+                                      sender: "bot",
+                                      structured_responses: response.data.responses,
+                                      timestamp: new Date().toISOString(),
+                                    };
+                                    setMessages((prev) => [...prev, botMsg]);
+                                    const hasQuestions = response.data.responses.some(r => r.type === 'questions');
+                                    setHasActiveForm(hasQuestions);
+                                  }
+                                }
+                              }).catch(error => {
+                                console.error("Send failed:", error);
+                                setError("Failed to send. Please try again.");
+                                setMessages((prev) => prev.slice(0, -1));
+                              }).finally(() => {
+                                setIsSending(false);
+                              });
+                            }}
+                          />
+                        ) : (
+                          <>
+                            <span
+                              className="user-chat-page-message-content"
+                              dangerouslySetInnerHTML={{
+                                __html: msg.sender === "bot" ? formatBotMessage(msg.content) : msg.content,
+                              }}
+                            />
 
-                        {msg.media_urls?.images?.map((img, idx) => (
-                          <img
-                            key={idx}
-                            src={img}
-                            alt="attachment"
-                            className="user-chat-page-image"
-                            loading="lazy"
-                            onClick={() => handleImageClick(img)}
-                          />
-                        ))}
-                        {msg.media_urls?.videos?.map((vid, idx) => (
-                          <video
-                            key={idx}
-                            src={vid}
-                            controls
-                            preload="metadata"
-                            onMouseEnter={(e) => {
-                              // Prevent any dark overlay on hover
-                              e.target.style.filter = 'none';
-                              e.target.style.opacity = '1';
-                            }}
-                            onMouseLeave={(e) => {
-                              // Ensure video stays bright when cursor leaves
-                              e.target.style.filter = 'none';
-                              e.target.style.opacity = '1';
-                            }}
-                            onLoadedMetadata={(e) => {
-                              // Ensure video is bright from the start
-                              e.target.style.filter = 'none';
-                              e.target.style.opacity = '1';
-                            }}
-                            className="user-chat-page-video"
-                          />
-                        ))}
+                            {msg.media_urls?.images?.map((img, idx) => (
+                              <img
+                                key={idx}
+                                src={img}
+                                alt="attachment"
+                                className="user-chat-page-image"
+                                loading="lazy"
+                                onClick={() => handleImageClick(img)}
+                              />
+                            ))}
+                            {msg.media_urls?.videos?.map((vid, idx) => (
+                              <video
+                                key={idx}
+                                src={vid}
+                                controls
+                                preload="metadata"
+                                onMouseEnter={(e) => {
+                                  e.target.style.filter = 'none';
+                                  e.target.style.opacity = '1';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.target.style.filter = 'none';
+                                  e.target.style.opacity = '1';
+                                }}
+                                onLoadedMetadata={(e) => {
+                                  e.target.style.filter = 'none';
+                                  e.target.style.opacity = '1';
+                                }}
+                                className="user-chat-page-video"
+                              />
+                            ))}
+                          </>
+                        )}
                         <div className="user-chat-page-timestamp">
                           {formatTime(msg.timestamp)}
                         </div>
@@ -976,17 +955,17 @@ useLayoutEffect(() => {
                     className="user-chat-page-textbox"
                     type="text"
                     value={inputMessage}
-                    disabled={isSending}
+                    disabled={isSending || hasActiveForm}
                     onChange={(e) => setInputMessage(e.target.value)}
                     onKeyPress={handleKeyPress}
-                    placeholder="Type your message..."
+                    placeholder={hasActiveForm ? "Please fill out the form above..." : "Type your message..."}
                   />
                 </div>
 
                 <MDBBtn
                   className="user-chat-page-send-btn"
                   onClick={sendMessage}
-                  disabled={isSending || !inputMessage.trim()}
+                  disabled={isSending || !inputMessage.trim() || hasActiveForm}
                   color="primary"
                   title="Send message"
                 >
