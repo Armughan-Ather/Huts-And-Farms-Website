@@ -301,9 +301,9 @@ useLayoutEffect(() => {
         timestamp += "Z";
       }
 
-      // Clean media URLs for bot messages
+      // Clean media URLs for ALL messages (bot and user)
       let cleanMediaUrls = msg.media_urls || {};
-      if (msg.sender === "bot" && msg.media_urls) {
+      if (msg.media_urls) {
         cleanMediaUrls = {};
         
         // Clean images array
@@ -355,6 +355,54 @@ useLayoutEffect(() => {
         }
       }
 
+      // Handle structured responses - backend now provides form submission state
+      let structuredResponses = msg.structured_response || null;
+      
+      // FALLBACK: If backend hasn't properly marked questions as submitted,
+      // check if there's a following user message with form_data
+      if (structuredResponses && Array.isArray(structuredResponses) && msg.sender === 'bot') {
+        // Find the message index
+        const msgIndex = (response.data || []).findIndex(m => 
+          m.message_id === msg.message_id
+        );
+        
+        if (msgIndex !== -1 && msgIndex < (response.data || []).length - 1) {
+          const nextMsg = (response.data || [])[msgIndex + 1];
+          
+          // Check if next message is from user and looks like a form submission
+          if (nextMsg && nextMsg.sender === 'user') {
+            // Check for is_form_submission flag OR comma-separated pattern
+            const isFormSubmission = nextMsg.is_form_submission === true || 
+                                    (nextMsg.content && 
+                                     nextMsg.content.includes(',') && 
+                                     nextMsg.content.split(',').length >= 2);
+            
+            if (isFormSubmission) {
+              // Mark questions as submitted and add the submitted data
+              structuredResponses = structuredResponses.map(resp => {
+                if (resp.type === 'questions' && !resp.submitted) {
+                  // Parse form data from user message content
+                  const rawAnswers = nextMsg.content.split(',').map(s => s.trim());
+                  
+                  // Create submitted_data structure
+                  const submittedData = {
+                    raw_answers: rawAnswers,
+                    ...(nextMsg.form_data || {})
+                  };
+                  
+                  return {
+                    ...resp,
+                    submitted: true,
+                    submitted_data: submittedData
+                  };
+                }
+                return resp;
+              });
+            }
+          }
+        }
+      }
+
       return {
         ...msg,
         content:
@@ -362,7 +410,7 @@ useLayoutEffect(() => {
             ? extractBotText(msg.content)
             : msg.content,
         media_urls: cleanMediaUrls,
-        structured_responses: msg.structured_response || null, // Add structured responses from history
+        structured_responses: structuredResponses,
         timestamp
       };
     });
@@ -370,11 +418,13 @@ useLayoutEffect(() => {
     setMessages(normalizedMessages);
     setError("");
     
-    // Check if the last bot message has questions (active form)
+    // Check if the last bot message has questions that are NOT submitted (active form)
     const lastBotMessage = normalizedMessages.filter(m => m.sender === 'bot').pop();
     if (lastBotMessage?.structured_responses) {
-      const hasQuestions = lastBotMessage.structured_responses.some(r => r.type === 'questions');
-      setHasActiveForm(hasQuestions);
+      const hasActiveQuestions = lastBotMessage.structured_responses.some(r => 
+        r.type === 'questions' && r.submitted !== true
+      );
+      setHasActiveForm(hasActiveQuestions);
     } else {
       setHasActiveForm(false);
     }
@@ -420,9 +470,11 @@ useLayoutEffect(() => {
           };
           setMessages((prev) => [...prev, botMsg]);
           
-          // Check if response has questions (active form)
-          const hasQuestions = response.data.responses.some(r => r.type === 'questions');
-          setHasActiveForm(hasQuestions);
+          // Check if response has questions that are NOT submitted (active form)
+          const hasActiveQuestions = response.data.responses.some(r => 
+            r.type === 'questions' && r.submitted !== true
+          );
+          setHasActiveForm(hasActiveQuestions);
         } else {
           // Legacy format - handle old responses
           const cleanMediaUrls = {};
@@ -501,7 +553,6 @@ useLayoutEffect(() => {
 
   const formatBotMessage = (text) => {
   if (!text) return "";
-  console.log("Bot message:", text);
 
   let formatted = text;
 
@@ -580,7 +631,28 @@ useLayoutEffect(() => {
   );
 
   /* ---------------------------------
-     1️⃣1️⃣ Clean up multiple line breaks
+     1️⃣1️⃣ Detect and render image URLs
+     Convert image URLs to actual <img> tags
+  ---------------------------------- */
+  // Match patterns like "Payment SS URL: https://..." or just image URLs
+  const beforeImageReplace = formatted;
+  formatted = formatted.replace(
+    /(Payment SS URL:|Image URL:|Screenshot:|Photo:)?\s*(https?:\/\/[^\s<]+\.(jpg|jpeg|png|gif|webp|bmp)(\?[^\s<]*)?)/gi,
+    (match, label, url) => {
+      console.log('🎯 Image URL matched:', { match, label, url });
+      // Don't show the label, just the image
+      return `<br><img src="${url}" alt="Image" class="user-chat-page-image" style="max-width: 300px; border-radius: 8px; margin: 8px 0; cursor: pointer;" onclick="window.handleChatImageClick('${url}')" />`;
+    }
+  );
+  
+  if (beforeImageReplace !== formatted) {
+    console.log('✅ Image replacement successful');
+    console.log('Before:', beforeImageReplace);
+    console.log('After:', formatted);
+  }
+
+  /* ---------------------------------
+     1️⃣2️⃣ Clean up multiple line breaks
      Max 2 consecutive <br> tags
   ---------------------------------- */
   formatted = formatted.replace(/(<br\s*\/?>){3,}/g, "<br><br>");
@@ -592,6 +664,27 @@ useLayoutEffect(() => {
 
   return formatted;
 };
+
+  // Format user messages to detect and render image URLs
+  const formatUserMessage = (text) => {
+    if (!text) return text;
+    
+    // Check if message contains image URL and replace with image tag
+    const imageUrlPattern = /(Payment SS URL\s*:|Image URL\s*:|Screenshot\s*:|Photo\s*:)?\s*(https?:\/\/[^\s<]+\.(jpg|jpeg|png|gif|webp|bmp)(\?[^\s<]*)?)/gi;
+    
+    if (imageUrlPattern.test(text)) {
+      return text.replace(
+        /(Payment SS URL\s*:|Image URL\s*:|Screenshot\s*:|Photo\s*:)?\s*(https?:\/\/[^\s<]+\.(jpg|jpeg|png|gif|webp|bmp)(\?[^\s<]*)?)/gi,
+        (match, label, url) => {
+          // Don't show the label, just the image
+          return `<img src="${url}" alt="Payment Screenshot" class="user-chat-page-image" style="max-width: 300px; border-radius: 8px; margin: 8px 0; cursor: pointer;" onclick="window.handleChatImageClick('${url}')" />`;
+        }
+      );
+    }
+    
+    return text;
+  };
+
 
   const handleImageUpload = async (file) => {
     if (!file) return;
@@ -708,6 +801,14 @@ useLayoutEffect(() => {
     document.body.style.overflow = 'hidden';
   };
 
+  // Make handleImageClick globally accessible for inline image clicks
+  React.useEffect(() => {
+    window.handleChatImageClick = handleImageClick;
+    return () => {
+      delete window.handleChatImageClick;
+    };
+  }, []);
+
   const closeImageModal = () => {
     setShowImageModal(false);
     setSelectedImage(null);
@@ -820,8 +921,10 @@ useLayoutEffect(() => {
                                       timestamp: new Date().toISOString(),
                                     };
                                     setMessages((prev) => [...prev, botMsg]);
-                                    const hasQuestions = response.data.responses.some(r => r.type === 'questions');
-                                    setHasActiveForm(hasQuestions);
+                                    const hasActiveQuestions = response.data.responses.some(r => 
+                                      r.type === 'questions' && r.submitted !== true
+                                    );
+                                    setHasActiveForm(hasActiveQuestions);
                                   }
                                 }
                               }).catch(error => {
@@ -838,7 +941,7 @@ useLayoutEffect(() => {
                             <span
                               className="user-chat-page-message-content"
                               dangerouslySetInnerHTML={{
-                                __html: msg.sender === "bot" ? formatBotMessage(msg.content) : msg.content,
+                                __html: msg.sender === "bot" ? formatBotMessage(msg.content) : formatUserMessage(msg.content),
                               }}
                             />
 

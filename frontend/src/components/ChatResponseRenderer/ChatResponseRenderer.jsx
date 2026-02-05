@@ -109,31 +109,56 @@ const InfoResponse = ({ response }) => {
 
 // Questions Response Component
 const QuestionsResponse = ({ response, onSubmit, sessionData }) => {
-  const { main_message, questions } = response;
+  const { main_message, questions, submitted, submitted_data } = response;
   const [formData, setFormData] = React.useState({});
   const [errors, setErrors] = React.useState({});
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [isSubmitted, setIsSubmitted] = React.useState(false);
+  const [localSubmitted, setLocalSubmitted] = React.useState(false);
 
-  // Pre-fill form with session data on mount
+  // Check if form was already submitted (from backend OR local state)
+  const isFormSubmitted = submitted === true || localSubmitted;
+
+  // Initialize form data based on submission status
   React.useEffect(() => {
-    if (sessionData && questions) {
+    if (isFormSubmitted && submitted_data) {
+      // Form is submitted - use submitted data
+      if (submitted_data.raw_answers && questions) {
+        const submittedFormData = {};
+        questions.forEach((question, idx) => {
+          if (submitted_data.raw_answers[idx]) {
+            submittedFormData[question.id] = submitted_data.raw_answers[idx];
+          }
+        });
+        console.log('Setting submitted form data:', submittedFormData);
+        setFormData(submittedFormData);
+      }
+    } else if (!isFormSubmitted && sessionData && questions) {
+      // Form is not submitted - pre-fill with session data
       const prefilled = {};
       questions.forEach(q => {
         // Map question IDs to session data
         if (q.id === 'property_type' && sessionData.property_type) {
           prefilled[q.id] = sessionData.property_type;
         } else if (q.id === 'booking_date' && sessionData.booking_date) {
-          prefilled[q.id] = sessionData.booking_date;
+          // Fix date format: convert "2026-02-09T00:00:00" to "2026-02-09"
+          let dateValue = sessionData.booking_date;
+          if (dateValue && dateValue.includes('T')) {
+            dateValue = dateValue.split('T')[0];
+          }
+          prefilled[q.id] = dateValue;
         } else if (q.id === 'shift_type' && sessionData.shift_type) {
           prefilled[q.id] = sessionData.shift_type;
         } else if (q.id === 'guest_count' && sessionData.max_occupancy) {
           prefilled[q.id] = sessionData.max_occupancy;
+        } else if (q.id === 'min_price' && sessionData.min_price) {
+          prefilled[q.id] = sessionData.min_price;
+        } else if (q.id === 'max_price' && sessionData.max_price) {
+          prefilled[q.id] = sessionData.max_price;
         }
       });
       setFormData(prefilled);
     }
-  }, [sessionData, questions]);
+  }, [isFormSubmitted, submitted_data, sessionData, questions]);
 
   const handleInputChange = (questionId, value) => {
     setFormData(prev => ({
@@ -201,14 +226,20 @@ const QuestionsResponse = ({ response, onSubmit, sessionData }) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Check if form is complete (all fields either filled or skipped)
+  // Check if form is complete (all required fields filled, optional can be empty or skipped)
   const isFormComplete = () => {
     return questions
       .filter(question => question.type !== 'price_range')
       .every(question => {
         const value = formData[question.id];
-        // Field is complete if it has a value OR is marked as "Not now"
-        return value && value.toString().trim() !== '';
+        
+        // Required fields must have a value
+        if (question.required) {
+          return value && value.toString().trim() !== '' && value !== 'Not now';
+        }
+        
+        // Optional fields are always considered complete (can be empty, filled, or skipped)
+        return true;
       });
   };
 
@@ -224,20 +255,52 @@ const QuestionsResponse = ({ response, onSubmit, sessionData }) => {
       return;
     }
     
-    setIsSubmitting(true);
-    setIsSubmitted(true);
+    // Check for unanswered optional fields and show friendly message
+    const unansweredOptional = questions
+      .filter(question => question.type !== 'price_range' && !question.required)
+      .filter(question => {
+        const value = formData[question.id];
+        return !value || value.toString().trim() === '';
+      });
     
-    // Format response with questions for optional fields that were skipped
+    if (unansweredOptional.length > 0) {
+      const fieldNames = unansweredOptional.map(q => q.text).join(', ');
+      const confirmMessage = `You didn't answer these optional fields: ${fieldNames}. Do you want to continue without them?`;
+      
+      if (!window.confirm(confirmMessage)) {
+        return;
+      }
+    }
+    
+    setIsSubmitting(true);
+    setLocalSubmitted(true); // Immediately show submitted view
+    
+    // Format response with clean comma-separated values only
     const responseText = questions
       .filter(question => question.type !== 'price_range')
       .map((q) => {
         const value = formData[q.id];
-        if (!value && !q.required) {
-          // For optional fields that were skipped, show "Question: Not now"
-          return `${q.text}: Not now`;
+        if (!value || value === 'Not now') {
+          return null;
         }
-        // For filled fields, show "Question: Answer"
-        return value ? `${q.text}: ${value}` : '';
+        
+        // Format date values to dd-mm-yyyy
+        if (q.type === 'date' && value) {
+          try {
+            const date = new Date(value);
+            if (!isNaN(date.getTime())) {
+              const day = String(date.getDate()).padStart(2, '0');
+              const month = String(date.getMonth() + 1).padStart(2, '0');
+              const year = date.getFullYear();
+              return `${day}-${month}-${year}`;
+            }
+          } catch (e) {
+            console.error('Date formatting error:', e);
+          }
+        }
+        
+        // Return only the value, not the question
+        return value;
       }).filter(Boolean).join(', ');
     
     // Call the onSubmit callback - this will send automatically
@@ -255,7 +318,7 @@ const QuestionsResponse = ({ response, onSubmit, sessionData }) => {
   };
 
   // If form is submitted, show answers instead of form
-  if (isSubmitted) {
+  if (isFormSubmitted) {
     return (
       <div className="questions-response submitted">
         {main_message && <p className="response-message">{main_message}</p>}
@@ -304,9 +367,9 @@ const QuestionsResponse = ({ response, onSubmit, sessionData }) => {
                         value={formData[question.id] === 'Not now' ? '' : (formData[question.id] || '')}
                         onChange={(e) => handleInputChange(question.id, e.target.value)}
                         placeholder={question.placeholder}
-                        disabled={formData[question.id] === 'Not now' || isSubmitted}
+                        disabled={formData[question.id] === 'Not now' || isFormSubmitted}
                       />
-                      {!question.required && formData[question.id] !== 'Not now' && !isSubmitted && (
+                      {!question.required && formData[question.id] !== 'Not now' && !isFormSubmitted && (
                         <button
                           type="button"
                           className="skip-button"
@@ -315,7 +378,7 @@ const QuestionsResponse = ({ response, onSubmit, sessionData }) => {
                           Not now
                         </button>
                       )}
-                      {formData[question.id] === 'Not now' && !isSubmitted && (
+                      {formData[question.id] === 'Not now' && !isFormSubmitted && (
                         <div className="skipped-indicator">
                           Skipped - <button type="button" className="undo-skip" onClick={() => handleInputChange(question.id, '')}>Undo</button>
                         </div>
@@ -329,14 +392,14 @@ const QuestionsResponse = ({ response, onSubmit, sessionData }) => {
                         className={`question-select ${errors[question.id] ? 'error' : ''}`}
                         value={formData[question.id] === 'Not now' ? '' : (formData[question.id] || '')}
                         onChange={(e) => handleInputChange(question.id, e.target.value)}
-                        disabled={formData[question.id] === 'Not now' || isSubmitted}
+                        disabled={formData[question.id] === 'Not now' || isFormSubmitted}
                       >
                         <option value="">Select an option...</option>
                         {question.options.map((option, optIdx) => (
                           <option key={optIdx} value={option}>{option}</option>
                         ))}
                       </select>
-                      {!question.required && formData[question.id] !== 'Not now' && !isSubmitted && (
+                      {!question.required && formData[question.id] !== 'Not now' && !isFormSubmitted && (
                         <button
                           type="button"
                           className="skip-button"
@@ -345,7 +408,7 @@ const QuestionsResponse = ({ response, onSubmit, sessionData }) => {
                           Not now
                         </button>
                       )}
-                      {formData[question.id] === 'Not now' && !isSubmitted && (
+                      {formData[question.id] === 'Not now' && !isFormSubmitted && (
                         <div className="skipped-indicator">
                           Skipped - <button type="button" className="undo-skip" onClick={() => handleInputChange(question.id, '')}>Undo</button>
                         </div>
@@ -362,9 +425,9 @@ const QuestionsResponse = ({ response, onSubmit, sessionData }) => {
                         onChange={(e) => handleInputChange(question.id, e.target.value)}
                         placeholder={question.placeholder || 'Enter a number'}
                         min="1"
-                        disabled={formData[question.id] === 'Not now' || isSubmitted}
+                        disabled={formData[question.id] === 'Not now' || isFormSubmitted}
                       />
-                      {!question.required && formData[question.id] !== 'Not now' && !isSubmitted && (
+                      {!question.required && formData[question.id] !== 'Not now' && !isFormSubmitted && (
                         <button
                           type="button"
                           className="skip-button"
@@ -373,7 +436,7 @@ const QuestionsResponse = ({ response, onSubmit, sessionData }) => {
                           Not now
                         </button>
                       )}
-                      {formData[question.id] === 'Not now' && !isSubmitted && (
+                      {formData[question.id] === 'Not now' && !isFormSubmitted && (
                         <div className="skipped-indicator">
                           Skipped - <button type="button" className="undo-skip" onClick={() => handleInputChange(question.id, '')}>Undo</button>
                         </div>
@@ -389,9 +452,9 @@ const QuestionsResponse = ({ response, onSubmit, sessionData }) => {
                         value={formData[question.id] === 'Not now' ? '' : (formData[question.id] || '')}
                         onChange={(e) => handleInputChange(question.id, e.target.value)}
                         placeholder={question.placeholder || 'Enter text'}
-                        disabled={formData[question.id] === 'Not now' || isSubmitted}
+                        disabled={formData[question.id] === 'Not now' || isFormSubmitted}
                       />
-                      {!question.required && formData[question.id] !== 'Not now' && !isSubmitted && (
+                      {!question.required && formData[question.id] !== 'Not now' && !isFormSubmitted && (
                         <button
                           type="button"
                           className="skip-button"
@@ -400,7 +463,7 @@ const QuestionsResponse = ({ response, onSubmit, sessionData }) => {
                           Not now
                         </button>
                       )}
-                      {formData[question.id] === 'Not now' && !isSubmitted && (
+                      {formData[question.id] === 'Not now' && !isFormSubmitted && (
                         <div className="skipped-indicator">
                           Skipped - <button type="button" className="undo-skip" onClick={() => handleInputChange(question.id, '')}>Undo</button>
                         </div>
@@ -424,7 +487,7 @@ const QuestionsResponse = ({ response, onSubmit, sessionData }) => {
         <button 
           type="submit" 
           className="submit-button"
-          disabled={isSubmitting || !isFormComplete() || isSubmitted}
+          disabled={isSubmitting || !isFormComplete() || isFormSubmitted}
         >
           {isSubmitting ? 'Submitting...' : 'Submit'}
         </button>
