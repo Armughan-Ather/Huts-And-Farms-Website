@@ -504,6 +504,12 @@
   color: #212529;
   flex: 1;
 }
+
+.answer-value.skipped {
+  color: #6c757d;
+  font-style: italic;
+}
+
 /* Enhanced validation and user experience styles */
 .validation-message {
   background: #fff3cd;

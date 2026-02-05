@@ -122,16 +122,44 @@ const QuestionsResponse = ({ response, onSubmit, sessionData }) => {
   React.useEffect(() => {
     if (isFormSubmitted && submitted_data) {
       // Form is submitted - use submitted data
-      if (submitted_data.raw_answers && questions) {
-        const submittedFormData = {};
+      const submittedFormData = {};
+      
+      // Try to use raw_answers array first (maps by index)
+      if (submitted_data.raw_answers && Array.isArray(submitted_data.raw_answers) && questions) {
         questions.forEach((question, idx) => {
           if (submitted_data.raw_answers[idx]) {
             submittedFormData[question.id] = submitted_data.raw_answers[idx];
           }
         });
-        console.log('Setting submitted form data:', submittedFormData);
-        setFormData(submittedFormData);
       }
+      
+      // Also check for named fields in submitted_data (from backend form_data)
+      if (questions) {
+        questions.forEach(q => {
+          // Map question IDs to backend field names
+          if (q.id === 'property_type' && submitted_data.property_type) {
+            submittedFormData[q.id] = submitted_data.property_type;
+          } else if (q.id === 'booking_date' && submitted_data.booking_date) {
+            // Convert date format if needed
+            let dateValue = submitted_data.booking_date;
+            if (dateValue && dateValue.includes('T')) {
+              dateValue = dateValue.split('T')[0];
+            }
+            submittedFormData[q.id] = dateValue;
+          } else if (q.id === 'shift_type' && submitted_data.shift_type) {
+            submittedFormData[q.id] = submitted_data.shift_type;
+          } else if (q.id === 'guest_count' && submitted_data.max_occupancy) {
+            submittedFormData[q.id] = submitted_data.max_occupancy;
+          } else if (q.id === 'min_price' && submitted_data.min_price) {
+            submittedFormData[q.id] = submitted_data.min_price;
+          } else if (q.id === 'max_price' && submitted_data.max_price) {
+            submittedFormData[q.id] = submitted_data.max_price;
+          }
+        });
+      }
+      
+      console.log('Setting submitted form data:', submittedFormData);
+      setFormData(submittedFormData);
     } else if (!isFormSubmitted && sessionData && questions) {
       // Form is not submitted - pre-fill with session data
       const prefilled = {};
@@ -327,12 +355,14 @@ const QuestionsResponse = ({ response, onSubmit, sessionData }) => {
             .filter(question => question.type !== 'price_range')
             .map((question, idx) => {
               const value = formData[question.id];
-              if (!value || value === 'Not now') return null;
               
+              // Show all questions, even skipped ones
               return (
                 <div key={idx} className="answer-item">
                   <span className="answer-label">{question.text}:</span>
-                  <span className="answer-value">{value}</span>
+                  <span className={`answer-value ${!value || value === 'Not now' ? 'skipped' : ''}`}>
+                    {!value || value === 'Not now' ? 'You skipped this question' : value}
+                  </span>
                 </div>
               );
             })}

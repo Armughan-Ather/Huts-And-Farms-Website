@@ -358,6 +358,11 @@ useLayoutEffect(() => {
       // Handle structured responses - backend now provides form submission state
       let structuredResponses = msg.structured_response || null;
       
+      // Ensure it's always an array for consistent handling
+      if (structuredResponses && !Array.isArray(structuredResponses)) {
+        structuredResponses = [structuredResponses];
+      }
+      
       // FALLBACK: If backend hasn't properly marked questions as submitted,
       // check if there's a following user message with form_data
       if (structuredResponses && Array.isArray(structuredResponses) && msg.sender === 'bot') {
@@ -371,24 +376,51 @@ useLayoutEffect(() => {
           
           // Check if next message is from user and looks like a form submission
           if (nextMsg && nextMsg.sender === 'user') {
-            // Check for is_form_submission flag OR comma-separated pattern
+            // IMPROVED: Check for is_form_submission flag OR form_data OR comma-separated pattern
+            const hasFormData = nextMsg.form_data && Object.keys(nextMsg.form_data).length > 0;
+            
+            // Check if content matches expected answer count for the questions
+            const questionCount = structuredResponses
+              .filter(r => r.type === 'questions')
+              .reduce((count, r) => count + (r.questions?.length || 0), 0);
+            
+            const contentParts = nextMsg.content?.split(',').map(s => s.trim()).filter(Boolean) || [];
+            const matchesQuestionCount = contentParts.length === questionCount || contentParts.length === questionCount - 1; // Allow for optional fields
+            
+            // Also check if it's a single answer (no commas) for single-question forms
+            const isSingleAnswer = questionCount <= 2 && nextMsg.content && !nextMsg.content.includes(',') && nextMsg.content.trim().length > 0;
+            
             const isFormSubmission = nextMsg.is_form_submission === true || 
-                                    (nextMsg.content && 
-                                     nextMsg.content.includes(',') && 
-                                     nextMsg.content.split(',').length >= 2);
+                                    hasFormData ||
+                                    (nextMsg.content && nextMsg.content.includes(',') && contentParts.length >= 2) ||
+                                    (isSingleAnswer && matchesQuestionCount);
             
             if (isFormSubmission) {
+              
               // Mark questions as submitted and add the submitted data
               structuredResponses = structuredResponses.map(resp => {
                 if (resp.type === 'questions' && !resp.submitted) {
-                  // Parse form data from user message content
-                  const rawAnswers = nextMsg.content.split(',').map(s => s.trim());
+                  // Use form_data if available, otherwise parse from content
+                  let submittedData;
                   
-                  // Create submitted_data structure
-                  const submittedData = {
-                    raw_answers: rawAnswers,
-                    ...(nextMsg.form_data || {})
-                  };
+                  if (hasFormData) {
+                    // Use the form_data from backend
+                    submittedData = nextMsg.form_data;
+                  } else {
+                    // Parse form data from user message content
+                    let rawAnswers;
+                    if (nextMsg.content.includes(',')) {
+                      // Multiple answers separated by commas
+                      rawAnswers = nextMsg.content.split(',').map(s => s.trim());
+                    } else {
+                      // Single answer (no commas)
+                      rawAnswers = [nextMsg.content.trim()];
+                    }
+                    
+                    submittedData = {
+                      raw_answers: rawAnswers
+                    };
+                  }
                   
                   return {
                     ...resp,
