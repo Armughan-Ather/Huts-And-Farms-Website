@@ -176,6 +176,25 @@
   opacity: 0.6;
 }
 
+.cancel-button {
+  background: transparent;
+  color: #dc3545;
+  border: 2px solid #dc3545;
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+  margin-top: 10px;
+}
+
+.cancel-button:hover {
+  background: #dc3545;
+  color: white;
+}
+
 .skip-button {
   background: transparent;
   border: 1px solid #6c757d;

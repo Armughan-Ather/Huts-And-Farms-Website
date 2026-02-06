@@ -521,6 +521,20 @@ const QuestionsResponse = ({ response, onSubmit, sessionData }) => {
         >
           {isSubmitting ? 'Submitting...' : 'Submit'}
         </button>
+        
+        {response.show_cancel && !isFormSubmitted && (
+          <button 
+            type="button" 
+            className="cancel-button"
+            onClick={() => {
+              if (onSubmit) {
+                onSubmit(response.cancel_text || 'Cancel Booking');
+              }
+            }}
+          >
+            {response.cancel_text || 'Cancel Booking'}
+          </button>
+        )}
       </form>
     </div>
   );
